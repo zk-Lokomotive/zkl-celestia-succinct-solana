@@ -1,7 +1,9 @@
 <script>
   import { createEventDispatcher } from 'svelte';
   import { fileStore } from './stores/fileStore.js';
+  import { walletStore } from './stores/wallet.js';
   import FileUpload from './FileUpload.svelte';
+  import RecipientSearch from './RecipientSearch.svelte';
   
   const dispatch = createEventDispatcher();
   const MAX_MESSAGE_LENGTH = 128;
@@ -9,11 +11,11 @@
   let recipientAddress = "";
   let message = "";
   let isTransferring = false;
+  let isUploading = false;
 
   $: selectedFile = $fileStore.selectedFile;
   $: transferStatus = $fileStore.transferStatus;
   $: ipfsHash = $fileStore.ipfsHash;
-  $: isUploading = $fileStore.isUploading;
 
   async function handleTransfer() {
     if (!selectedFile || !recipientAddress) return;
@@ -31,8 +33,21 @@
     }
   }
 
-  function handleFileSelected(event) {
-    // Additional handling if needed
+  async function handleUploadToIPFS() {
+    if (!selectedFile) return;
+    
+    isUploading = true;
+    try {
+      await fileStore.uploadFile(selectedFile);
+    } catch (error) {
+      console.error('IPFS upload failed:', error);
+    } finally {
+      isUploading = false;
+    }
+  }
+
+  function handleRecipientSelect(event) {
+    recipientAddress = event.detail.publicKey;
   }
 
   function handleChangeFile() {
@@ -57,7 +72,7 @@
     <div class="content">
       <div class="left-column">
         {#if !selectedFile}
-          <FileUpload on:fileSelected={handleFileSelected} />
+          <FileUpload />
         {:else}
           <div class="file-details">
             <div class="file-header">
@@ -72,38 +87,50 @@
                 Change File
               </button>
             </div>
-            
-            <div class="recipient-field">
-              <label for="recipient">Recipient</label>
-              <input 
-                type="text" 
-                id="recipient"
-                bind:value={recipientAddress}
-                placeholder="Enter recipient's wallet address"
-                class="input-field"
-              />
+
+            <div class="action-buttons">
+              <button 
+                class="ipfs-button" 
+                on:click={handleUploadToIPFS}
+                disabled={isUploading || ipfsHash}
+              >
+                {#if isUploading}
+                  Uploading to IPFS...
+                {:else if ipfsHash}
+                  Uploaded to IPFS
+                {:else}
+                  Upload to IPFS
+                {/if}
+              </button>
             </div>
 
-            <div class="message-field">
-              <label for="message">Message</label>
-              <textarea 
-                id="message"
-                bind:value={message}
-                maxlength={MAX_MESSAGE_LENGTH}
-                placeholder="Add a note (optional)"
-                class="input-field"
-              ></textarea>
-              <span class="character-count">{message.length}/{MAX_MESSAGE_LENGTH}</span>
-            </div>
+            {#if ipfsHash}
+              <div class="recipient-field">
+                <label for="recipient">Recipient</label>
+                <RecipientSearch on:select={handleRecipientSelect} />
+              </div>
 
-            <button 
-              class="send-button" 
-              on:click={handleTransfer}
-              disabled={isTransferring || !recipientAddress}
-            >
-              <span class="envelope-icon">✉</span>
-              <span>{isTransferring ? 'Sending...' : 'Send'}</span>
-            </button>
+              <div class="message-field">
+                <label for="message">Message</label>
+                <textarea 
+                  id="message"
+                  bind:value={message}
+                  maxlength={MAX_MESSAGE_LENGTH}
+                  placeholder="Add a note (optional)"
+                  class="input-field"
+                ></textarea>
+                <span class="character-count">{message.length}/{MAX_MESSAGE_LENGTH}</span>
+              </div>
+
+              <button 
+                class="send-button" 
+                on:click={handleTransfer}
+                disabled={isTransferring || !recipientAddress}
+              >
+                <span class="envelope-icon">✉</span>
+                <span>{isTransferring ? 'Sending...' : 'Send'}</span>
+              </button>
+            {/if}
           </div>
         {/if}
       </div>
@@ -256,6 +283,33 @@
 
   .change-file-button:active {
     transform: translateY(1px);
+  }
+
+  .action-buttons {
+    display: flex;
+    gap: 1rem;
+  }
+
+  .ipfs-button {
+    padding: 0.8rem 1.5rem;
+    background: #000;
+    color: #feffaf;
+    border: none;
+    border-radius: 8px;
+    font-family: 'League Spartan', sans-serif;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .ipfs-button:not(:disabled):hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  }
+
+  .ipfs-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
   }
 
   .file-size {
