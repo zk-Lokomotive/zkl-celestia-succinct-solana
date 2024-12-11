@@ -23,18 +23,17 @@ function generateRandomAvatar() {
 
 export const connectWallet = async () => {
   try {
+    // Check if Solflare is installed
     if (typeof window === 'undefined' || !window.solflare) {
-      alert('Solflare wallet not found! Please install Solflare extension first.');
-      return false;
+      throw new Error('Solflare wallet not found! Please install Solflare extension first.');
     }
 
-    try {
+    // Initialize Solflare
+    if (!window.solflare.isConnected) {
       await window.solflare.connect();
-    } catch (err) {
-      console.error('Connection error:', err);
-      return false;
     }
 
+    // Get public key
     const publicKey = window.solflare.publicKey.toString();
     const username = `${publicKey.slice(0, 4)}...${publicKey.slice(-4)}`;
     const avatar = generateRandomAvatar();
@@ -57,13 +56,19 @@ export const connectWallet = async () => {
     return true;
   } catch (error) {
     console.error('Error connecting wallet:', error);
+    walletStore.set({
+      connected: false,
+      publicKey: null,
+      username: null,
+      avatar: null
+    });
     return false;
   }
 };
 
 export const disconnectWallet = async () => {
   try {
-    if (window.solflare && window.solflare.connected) {
+    if (window.solflare?.isConnected) {
       await window.solflare.disconnect();
     }
     
