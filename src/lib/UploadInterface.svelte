@@ -12,7 +12,8 @@
   let message = "";
   let isTransferring = false;
   let isUploading = false;
-
+  let selectedRecipient = null;
+  
   $: selectedFile = $fileStore.selectedFile;
   $: transferStatus = $fileStore.transferStatus;
   $: ipfsHash = $fileStore.ipfsHash;
@@ -47,12 +48,18 @@
   }
 
   function handleRecipientSelect(event) {
-    recipientAddress = event.detail.publicKey;
+    const user = event.detail;
+    recipientAddress = user.publicKey;
+    selectedRecipient = user;
   }
 
   function handleChangeFile() {
     fileStore.reset();
+    selectedRecipient = null;
+    recipientAddress = "";
+    message = "";
   }
+
 </script>
 
 <div class="modal-overlay">
@@ -64,7 +71,7 @@
         on:click={() => dispatch('close')}
       >
         <div class="close-button-inner">
-          <span class="close-icon">×</span>
+          <span class="close-icon">x</span>
         </div>
       </button>
     </div>
@@ -84,31 +91,28 @@
                 class="change-file-button" 
                 on:click={handleChangeFile}
               >
-                Change File
-              </button>
-            </div>
+              Change File
+            </button>
+          </div>
 
-            <div class="action-buttons">
-              <button 
-                class="ipfs-button" 
-                on:click={handleUploadToIPFS}
-                disabled={isUploading || ipfsHash}
-              >
-                {#if isUploading}
-                  Uploading to IPFS...
-                {:else if ipfsHash}
-                  Uploaded to IPFS
-                {:else}
-                  Upload to IPFS
-                {/if}
-              </button>
-            </div>
-
-            {#if ipfsHash}
-              <div class="recipient-field">
-                <label for="recipient">Recipient</label>
-                <RecipientSearch on:select={handleRecipientSelect} />
+          <div class="recipient-field">
+            <label for="recipient">Recipient</label>
+            <RecipientSearch on:select={handleRecipientSelect} />
+            
+            {#if selectedRecipient}
+              <div class="selected-recipient">
+                <img 
+                  src={selectedRecipient.avatar} 
+                  alt="" 
+                  class="recipient-avatar"
+                />
+                <div class="recipient-info">
+                  <span class="recipient-name">{selectedRecipient.username}</span>
+                  <code class="recipient-address">{selectedRecipient.publicKey}</code>
+                </div>
               </div>
+            {/if}
+          </div>
 
               <div class="message-field">
                 <label for="message">Message</label>
@@ -123,14 +127,13 @@
               </div>
 
               <button 
-                class="send-button" 
-                on:click={handleTransfer}
-                disabled={isTransferring || !recipientAddress}
-              >
-                <span class="envelope-icon">✉</span>
-                <span>{isTransferring ? 'Sending...' : 'Send'}</span>
-              </button>
-            {/if}
+              class="send-button" 
+              on:click={handleTransfer}
+              disabled={isTransferring || !recipientAddress}
+            >
+              <span class="envelope-icon">📩</span>
+              <span>{isTransferring ? 'Sending...' : 'Send'}</span>
+            </button>
           </div>
         {/if}
       </div>
@@ -141,17 +144,17 @@
         <div class="preview-frame">
           <div class="preview-content">
             <h3>Payload Preview</h3>
-            {#if ipfsHash}
-              <p>File uploaded successfully!</p>
-              <div class="fingerprint">
-                <code>IPFS: {ipfsHash}</code>
-                <button class="copy-button">Copy</button>
+            {#if selectedFile}
+              <p>File selected successfully!</p>
+              <div class="file-info">
+                <p>Name: {selectedFile.name}</p>
+                <p>Size: {(selectedFile.size / (1024 * 1024)).toFixed(2)} MiB</p>
               </div>
               <p class="security-note">
-                Share this IPFS hash with the recipient for verification.
+                File will be encrypted and stored on IPFS.
               </p>
             {:else}
-              <p>Upload a file to see its preview and IPFS hash.</p>
+              <p>Upload a file to see its preview.</p>
             {/if}
           </div>
         </div>
@@ -285,7 +288,7 @@
     transform: translateY(1px);
   }
 
-  .action-buttons {
+  /* .action-buttons {
     display: flex;
     gap: 1rem;
   }
@@ -300,9 +303,9 @@
     font-size: 1rem;
     cursor: pointer;
     transition: all 0.2s;
-  }
+  } */
 
-  .ipfs-button:not(:disabled):hover {
+  /* .ipfs-button:not(:disabled):hover {
     transform: translateY(-2px);
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
   }
@@ -310,7 +313,7 @@
   .ipfs-button:disabled {
     opacity: 0.5;
     cursor: not-allowed;
-  }
+  } */
 
   .file-size {
     color: rgba(0, 0, 0, 0.6);
@@ -410,7 +413,7 @@
     text-align: center;
   }
 
-  .fingerprint {
+   .fingerprint {
     margin: 2rem 0;
     display: flex;
     align-items: center;
@@ -429,10 +432,47 @@
 
   .copy-button:hover {
     background: rgba(0, 0, 0, 0.2);
-  }
+  } 
 
   .security-note {
     font-size: 0.9rem;
     color: rgba(0, 0, 0, 0.6);
   }
+
+  .selected-recipient {
+    margin-top: 1rem;
+    padding: 1rem;
+    background: rgba(0, 0, 0, 0.05);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  .recipient-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    border: 2px solid rgba(0, 0, 0, 0.1);
+  }
+
+  .recipient-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  .recipient-name {
+    font-weight: 500;
+    font-size: 1.1rem;
+  }
+
+  .recipient-address {
+    font-family: monospace;
+    font-size: 0.9rem;
+    background: rgba(0, 0, 0, 0.1);
+    padding: 0.2rem 0.4rem;
+    border-radius: 4px;
+  }
+
 </style>

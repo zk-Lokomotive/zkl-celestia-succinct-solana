@@ -9,7 +9,10 @@ import { createMemoInstruction } from '@solana/spl-memo';
 // Use devnet for testing
 const connection = new Connection(clusterApiUrl('devnet'), 'confirmed');
 
-export async function sendMemoTransaction(wallet, recipientAddress, ipfsHash) {
+// Solana Explorer URL for devnet
+const SOLANA_EXPLORER_URL = 'https://explorer.solana.com/tx';
+
+export async function sendMemoTransaction(wallet, recipientAddress, ipfsUrl) {
   try {
     if (!window.solflare?.isConnected) {
       throw new Error('Wallet not connected');
@@ -18,8 +21,8 @@ export async function sendMemoTransaction(wallet, recipientAddress, ipfsHash) {
     // Create transaction
     const transaction = new Transaction();
     
-    // Create memo instruction with IPFS hash
-    const memoInstruction = createMemoInstruction(ipfsHash);
+    // Create memo instruction with IPFS URL
+    const memoInstruction = createMemoInstruction(ipfsUrl);
     transaction.add(memoInstruction);
     
     // Get recent blockhash
@@ -39,7 +42,11 @@ export async function sendMemoTransaction(wallet, recipientAddress, ipfsHash) {
         throw new Error('Transaction failed to confirm');
       }
 
-      return signature;
+      // Return both signature and explorer URL
+      return {
+        signature,
+        explorerUrl: `${SOLANA_EXPLORER_URL}/${signature}?cluster=devnet`
+      };
     } catch (err) {
       console.error('Transaction error:', err);
       throw new Error('Failed to send transaction');

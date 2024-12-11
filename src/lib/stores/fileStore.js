@@ -91,14 +91,14 @@ function createFileStore() {
           throw new Error('No file uploaded');
         }
 
-        // Send Solana transaction with local IPFS URL
-        const signature = await sendMemoTransaction(
+        // Send Solana transaction with IPFS URL
+        const { signature, explorerUrl } = await sendMemoTransaction(
           wallet,
           recipientAddress,
-          ipfsUrl // Using local IPFS gateway URL
+          ipfsUrl
         );
 
-        // Add message to recipient's inbox
+        // Important: Add message to RECIPIENT'S inbox, not sender's
         inboxStore.addMessage(recipientAddress, {
           ipfsHash,
           ipfsUrl,
@@ -107,6 +107,7 @@ function createFileStore() {
           fileName: selectedFile.name,
           fileSize: selectedFile.size,
           transactionSignature: signature,
+          transactionUrl: explorerUrl,
           timestamp: new Date().toISOString()
         });
 
@@ -116,6 +117,11 @@ function createFileStore() {
           recipientAddress,
           message
         }));
+
+        // Reset the store after successful transfer
+        setTimeout(() => {
+          set(initialState);
+        }, 2000);
 
         return true;
       } catch (error) {
@@ -132,4 +138,4 @@ function createFileStore() {
   };
 }
 
-export const fileStore = createFileStore();
+export const fileStore = createFileStore(); 

@@ -58,11 +58,22 @@
               on:click={() => deleteMessage(message.id)}
               title="Delete message"
             >
-              ×
+              ✖️
             </button>
           </div>
           
           <div class="message-content">
+            <div class="transaction-info">
+              <span class="label">Transaction:</span>
+              <a 
+                href={message.transactionUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                class="transaction-link"
+              >
+                View on Solana Explorer
+              </a>
+            </div>
             <div class="file-info">
               <div class="file-name">{message.fileName}</div>
               <div class="ipfs-link">
@@ -106,6 +117,34 @@
 </div>
 
 <style>
+  .transaction-info {
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid rgba(0, 0, 0, 0.1);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.9rem;
+  }
+
+  .transaction-link {
+    color: #000;
+    text-decoration: none;
+    background: rgba(0, 0, 0, 0.05);
+    padding: 0.4rem 0.8rem;
+    border-radius: 4px;
+    transition: all 0.2s;
+    font-family: 'League Spartan', sans-serif;
+  }
+
+  .transaction-link:hover {
+    background: rgba(0, 0, 0, 0.1);
+    transform: translateY(-1px);
+  }
+
+  .transaction-link:active {
+    transform: translateY(1px);
+  }
   .inbox-container {
     margin-top: 2rem;
     background: #feffaf;

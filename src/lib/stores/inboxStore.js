@@ -9,19 +9,28 @@ const createInboxStore = () => {
   return {
     subscribe,
     addMessage: (recipientAddress, message) => update(store => {
+      // Initialize messages array for recipient if it doesn't exist
       if (!store.messages[recipientAddress]) {
         store.messages[recipientAddress] = [];
       }
+
+      // Add message to recipient's inbox
       store.messages[recipientAddress].push({
         ...message,
-        timestamp: new Date().toISOString(),
         id: crypto.randomUUID()
       });
+
       return store;
     }),
     getMessagesForUser: (address) => derived(
       { subscribe },
-      $store => $store.messages[address] || []
+      $store => {
+        // Return messages for the specified address, sorted by timestamp
+        const messages = $store.messages[address] || [];
+        return [...messages].sort((a, b) => 
+          new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+        );
+      }
     ),
     deleteMessage: (address, messageId) => update(store => {
       if (store.messages[address]) {
