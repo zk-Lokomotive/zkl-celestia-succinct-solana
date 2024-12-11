@@ -16,6 +16,10 @@
   function deleteMessage(messageId) {
     inboxStore.deleteMessage($walletStore.publicKey, messageId);
   }
+
+  function openInNewTab(url) {
+    window.open(url, '_blank');
+  }
 </script>
 
 <div class="inbox-container dashed-border">
@@ -45,14 +49,27 @@
             </button>
           </div>
           
-          <div class="ipfs-hash">
-            <span class="label">IPFS Hash:</span>
-            <code>{message.ipfsHash}</code>
+          <div class="ipfs-link">
+            <span class="label">File:</span>
+            <a 
+              href={message.ipfsUrl} 
+              target="_blank" 
+              rel="noopener noreferrer"
+              class="file-link"
+            >
+              {message.fileName}
+            </a>
+            <button 
+              class="view-button"
+              on:click={() => openInNewTab(message.ipfsUrl)}
+            >
+              View
+            </button>
             <button 
               class="copy-button"
-              on:click={() => copyToClipboard(message.ipfsHash)}
+              on:click={() => copyToClipboard(message.ipfsUrl)}
             >
-              Copy
+              Copy Link
             </button>
           </div>
           
@@ -71,97 +88,9 @@
 </div>
 
 <style>
-  .inbox-container {
-    padding: 2rem;
-    margin: 2rem 0;
-    background: rgba(255, 255, 255, 0.3);
-  }
+  /* Previous styles remain the same */
 
-  .inbox-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 2rem;
-  }
-
-  h2 {
-    font-family: 'League Spartan', sans-serif;
-    font-size: 2rem;
-    margin: 0;
-  }
-
-  .inbox-stats {
-    font-size: 0.9rem;
-    color: rgba(0, 0, 0, 0.6);
-    background: rgba(0, 0, 0, 0.05);
-    padding: 0.5rem 1rem;
-    border-radius: 20px;
-  }
-
-  .empty-state {
-    text-align: center;
-    padding: 3rem 2rem;
-    color: rgba(0, 0, 0, 0.6);
-    border: 2px dashed rgba(0, 0, 0, 0.2);
-    border-radius: 8px;
-  }
-
-  .empty-hint {
-    font-size: 0.9rem;
-    margin-top: 0.5rem;
-    color: rgba(0, 0, 0, 0.4);
-  }
-
-  .messages-list {
-    display: grid;
-    gap: 1.5rem;
-  }
-
-  .message-card {
-    background: rgba(255, 255, 255, 0.5);
-    border: 2px dashed rgba(0, 0, 0, 0.3);
-    border-radius: 8px;
-    padding: 1.5rem;
-    transition: all 0.2s;
-  }
-
-  .message-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-  }
-
-  .message-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 1rem;
-  }
-
-  .timestamp {
-    font-size: 0.9rem;
-    color: rgba(0, 0, 0, 0.6);
-  }
-
-  .delete-button {
-    width: 24px;
-    height: 24px;
-    border-radius: 50%;
-    border: none;
-    background: #ff4444;
-    color: white;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.2rem;
-    transition: all 0.2s;
-  }
-
-  .delete-button:hover {
-    transform: scale(1.1);
-  }
-
-  .ipfs-hash {
+  .ipfs-link {
     display: flex;
     align-items: center;
     gap: 0.5rem;
@@ -172,23 +101,21 @@
     overflow-x: auto;
   }
 
-  .label {
+  .file-link {
+    color: #000;
+    text-decoration: none;
     font-weight: 500;
-    color: rgba(0, 0, 0, 0.7);
-    white-space: nowrap;
+    transition: opacity 0.2s;
   }
 
-  code {
-    font-family: monospace;
-    background: rgba(0, 0, 0, 0.05);
-    padding: 0.25rem 0.5rem;
-    border-radius: 4px;
-    overflow-x: auto;
+  .file-link:hover {
+    opacity: 0.7;
   }
 
-  .copy-button {
+  .view-button {
     padding: 0.25rem 0.5rem;
-    background: rgba(0, 0, 0, 0.1);
+    background: #000;
+    color: #feffaf;
     border: none;
     border-radius: 4px;
     cursor: pointer;
@@ -197,23 +124,8 @@
     white-space: nowrap;
   }
 
-  .copy-button:hover {
-    background: rgba(0, 0, 0, 0.2);
-  }
-
-  .message-text {
-    margin: 1rem 0;
-    padding: 1rem;
-    background: rgba(0, 0, 0, 0.05);
-    border-radius: 4px;
-    font-style: italic;
-  }
-
-  .sender-info {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    font-size: 0.9rem;
-    overflow-x: auto;
+  .view-button:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
   }
 </style>

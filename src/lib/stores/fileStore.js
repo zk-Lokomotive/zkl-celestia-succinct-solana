@@ -1,34 +1,36 @@
 import { writable, get } from 'svelte/store';
 import { inboxStore } from './inboxStore.js';
 import { walletStore } from './wallet.js';
-import { uploadToIPFS } from '../services/ipfs.js';
+import { uploadToIPFS, checkIPFSConnection } from '../services/ipfs.js';
 import { sendMemoTransaction } from '../services/solana.js';
 
 // Initial store state
 const initialState = {
   selectedFile: null,
   ipfsHash: null,
+  ipfsUrl: null,
   transferStatus: null,
   recipientAddress: '',
   message: '',
   error: null,
   isUploading: false,
-  uploadProgress: 0
+  uploadProgress: 0,
+  ipfsConnected: false
 };
 
 function createFileStore() {
   const { subscribe, set, update } = writable(initialState);
 
+  // Check IPFS connection on store creation
+  checkIPFSConnection().then(connected => {
+    update(store => ({ ...store, ipfsConnected: connected }));
+  });
+
   return {
     subscribe,
-    
-    // Reset store to initial state
     reset: () => set(initialState),
-    
-    // Set error message
     setError: (error) => update(store => ({ ...store, error })),
     
-    // Upload file to IPFS
     uploadFile: async (file) => {
       update(store => ({ 
         ...store, 
@@ -38,19 +40,25 @@ function createFileStore() {
       }));
       
       try {
-        // Upload to IPFS
-        const ipfsHash = await uploadToIPFS(file);
+        // Verify IPFS connection first
+        const connected = await checkIPFSConnection();
+        if (!connected) {
+          throw new Error('IPFS node not available. Please ensure your local IPFS daemon is running.');
+        }
+
+        // Upload to local IPFS node
+        const { cid, url } = await uploadToIPFS(file);
         
-        // Update store with successful upload
         update(store => ({
           ...store,
           selectedFile: file,
-          ipfsHash,
+          ipfsHash: cid,
+          ipfsUrl: url,
           isUploading: false,
           uploadProgress: 100
         }));
 
-        return ipfsHash;
+        return { cid, url };
       } catch (error) {
         console.error('Upload error:', error);
         const errorMessage = error.message || 'Failed to upload file';
@@ -64,7 +72,6 @@ function createFileStore() {
       }
     },
     
-    // Transfer file to recipient
     transferFile: async (recipientAddress, message) => {
       update(store => ({ 
         ...store, 
@@ -73,7 +80,7 @@ function createFileStore() {
       }));
 
       try {
-        const { ipfsHash, selectedFile } = get({ subscribe });
+        const { ipfsHash, ipfsUrl, selectedFile } = get({ subscribe });
         const wallet = get(walletStore);
 
         if (!wallet.connected) {
@@ -84,16 +91,17 @@ function createFileStore() {
           throw new Error('No file uploaded');
         }
 
-        // Send Solana transaction with IPFS hash
+        // Send Solana transaction with local IPFS URL
         const signature = await sendMemoTransaction(
           wallet,
           recipientAddress,
-          ipfsHash
+          ipfsUrl // Using local IPFS gateway URL
         );
 
         // Add message to recipient's inbox
         inboxStore.addMessage(recipientAddress, {
           ipfsHash,
+          ipfsUrl,
           message,
           senderAddress: wallet.publicKey,
           fileName: selectedFile.name,
@@ -102,7 +110,6 @@ function createFileStore() {
           timestamp: new Date().toISOString()
         });
 
-        // Update store with successful transfer
         update(store => ({
           ...store,
           transferStatus: 'completed',
@@ -121,25 +128,7 @@ function createFileStore() {
         }));
         throw new Error(errorMessage);
       }
-    },
-    
-    // Update recipient address
-    setRecipient: (address) => update(store => ({ 
-      ...store, 
-      recipientAddress: address 
-    })),
-    
-    // Update message
-    setMessage: (text) => update(store => ({ 
-      ...store, 
-      message: text 
-    })),
-    
-    // Update upload progress
-    setUploadProgress: (progress) => update(store => ({
-      ...store,
-      uploadProgress: progress
-    }))
+    }
   };
 }
 
