@@ -2,15 +2,20 @@
     import { createEventDispatcher } from 'svelte';
     import { fade, fly } from 'svelte/transition';
     import { walletStore } from './stores/wallet.js';
+    import { themeStore } from './stores/themeStore.js';
     
     const dispatch = createEventDispatcher();
     
-    let darkMode = false;
+    let darkMode = $themeStore.isDark;
     let notifications = true;
     let language = 'en';
     
     function handleClose() {
       dispatch('close');
+    }
+
+    $: {
+      themeStore.setDarkMode(darkMode);
     }
   </script>
   
@@ -95,13 +100,13 @@
     }
   
     .settings-modal {
-      background: #feffaf;
+      background: var(--main-bg-color);
       width: 90%;
       max-width: 600px;
       border-radius: 12px;
       padding: 2rem;
       box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
-      border: 2px dashed rgba(0, 0, 0, 0.3);
+      border: 2px dashed var(--border-color);
     }
   
     .modal-header {
@@ -110,7 +115,7 @@
       align-items: center;
       margin-bottom: 2rem;
       padding-bottom: 1rem;
-      border-bottom: 2px dashed rgba(0, 0, 0, 0.3);
+      border-bottom: 2px dashed var(--border-color);
     }
   
     h2 {
@@ -133,7 +138,7 @@
       height: 100%;
       border-radius: 50%;
       background: #ff4444;
-      border: 2px solid #000;
+      border: 2px solid var(--text-color);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -146,7 +151,7 @@
     }
   
     .close-icon {
-      color: #000;
+      color: var(--text-color);
       font-size: 28px;
       line-height: 1;
     }
@@ -166,7 +171,7 @@
       align-items: center;
       gap: 1rem;
       padding: 1rem;
-      background: rgba(0, 0, 0, 0.05);
+      background: var(--hover-bg-color);
       border-radius: 8px;
     }
   
@@ -174,7 +179,7 @@
       width: 64px;
       height: 64px;
       border-radius: 50%;
-      border: 2px solid rgba(0, 0, 0, 0.1);
+      border: 2px solid var(--border-color);
     }
   
     .account-details {
@@ -190,7 +195,7 @@
   
     .wallet-address {
       font-family: monospace;
-      background: rgba(0, 0, 0, 0.1);
+      background: var(--hover-bg-color);
       padding: 0.25rem 0.5rem;
       border-radius: 4px;
       font-size: 0.9rem;
@@ -223,10 +228,10 @@
       left: 0;
       right: 0;
       bottom: 0;
-      background-color: rgba(0, 0, 0, 0.1);
+      background-color: var(--hover-bg-color);
       transition: .4s;
       border-radius: 34px;
-      border: 2px solid rgba(0, 0, 0, 0.2);
+      border: 2px solid var(--border-color);
     }
   
     .slider:before {
@@ -236,13 +241,13 @@
       width: 26px;
       left: 2px;
       bottom: 2px;
-      background-color: white;
+      background-color: var(--main-bg-color);
       transition: .4s;
       border-radius: 50%;
     }
   
     input:checked + .slider {
-      background-color: #000;
+      background-color: var(--text-color);
     }
   
     input:checked + .slider:before {
@@ -251,10 +256,10 @@
   
     .select-input {
       padding: 0.5rem;
-      border: 2px solid rgba(0, 0, 0, 0.1);
+      border: 2px solid var(--border-color);
       border-radius: 4px;
       font-family: 'League Spartan', sans-serif;
-      background: white;
+      background: var(--main-bg-color);
     }
   
     .security-button {
@@ -262,7 +267,7 @@
       padding: 1rem;
       margin-bottom: 0.5rem;
       background: none;
-      border: 2px solid rgba(0, 0, 0, 0.1);
+      border: 2px solid var(--border-color);
       border-radius: 8px;
       font-family: 'League Spartan', sans-serif;
       display: flex;
@@ -273,7 +278,7 @@
     }
   
     .security-button:hover {
-      background: rgba(0, 0, 0, 0.05);
+      background: var(--hover-bg-color);
       transform: translateY(-1px);
     }
   

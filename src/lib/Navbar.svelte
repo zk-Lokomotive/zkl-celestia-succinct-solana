@@ -1,5 +1,6 @@
 <script>
   import { walletStore, connectWallet, disconnectWallet } from './stores/wallet.js';
+  import { themeStore } from './stores/themeStore.js';
   import { onMount, onDestroy } from 'svelte';
   import { fade, slide } from 'svelte/transition';
   import { createEventDispatcher } from 'svelte';
@@ -22,6 +23,7 @@
   let isConnecting = false;
 
   $: isAdmin = $walletStore.connected && $walletStore.publicKey === ADMIN_WALLET;
+  $: isDark = $themeStore.isDark;
 
   function handleClickOutside(event) {
     if (accountButton && !accountButton.contains(event.target)) {
@@ -157,7 +159,7 @@
 <style>
   nav {
     padding: 1rem 0;
-    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+    border-bottom: 1px solid var(--border-color);
     background: var(--main-bg-color);
     position: relative;
     z-index: 100;
@@ -201,8 +203,8 @@
 
   .connect-wallet-button {
     padding: 0.75rem 1.5rem;
-    background: #000;
-    color: #feffaf;
+    background: var(--text-color);
+    color: var(--main-bg-color);
     border: none;
     border-radius: 8px;
     font-family: 'League Spartan', sans-serif;
@@ -235,8 +237,8 @@
     align-items: center;
     gap: 0.5rem;
     padding: 0.5rem 1rem;
-    background: rgba(0, 0, 0, 0.05);
-    border: 2px solid rgba(0, 0, 0, 0.1);
+    background: var(--hover-bg-color);
+    border: 2px solid var(--border-color);
     border-radius: 8px;
     cursor: pointer;
     transition: all 0.2s ease;
@@ -268,10 +270,11 @@
     top: calc(100% + 0.5rem);
     right: 0;
     width: 280px;
-    background: white;
+    background: var(--main-bg-color);
+    color: var(--text-color);
     border-radius: 12px;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
-    border: 1px solid rgba(0, 0, 0, 0.1);
+    box-shadow: 0 4px 20px var(--hover-bg-color);
+    border: 1px solid var(--border-color);
     overflow: hidden;
   }
 
@@ -280,7 +283,7 @@
     display: flex;
     align-items: center;
     gap: 1rem;
-    background: rgba(0, 0, 0, 0.02);
+    background: var(--hover-bg-color);
   }
 
   .menu-avatar {
@@ -301,12 +304,13 @@
 
   .menu-wallet-type {
     font-size: 0.9rem;
-    color: rgba(0, 0, 0, 0.6);
+    color: var(--text-color);
+    opacity: 0.6;
   }
 
   .menu-divider {
     height: 1px;
-    background: rgba(0, 0, 0, 0.1);
+    background: var(--border-color);
     margin: 0.5rem 0;
   }
 
@@ -330,7 +334,7 @@
   }
 
   .menu-item:hover {
-    background: rgba(0, 0, 0, 0.05);
+    background: var(--hover-bg-color);
   }
 
   .logout-button {

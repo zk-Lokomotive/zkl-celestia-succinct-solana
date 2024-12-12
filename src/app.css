@@ -3,6 +3,8 @@
 :root {
   --main-bg-color: #feffaf;
   --text-color: #000000;
+  --border-color: rgba(0, 0, 0, 0.3);
+  --hover-bg-color: rgba(0, 0, 0, 0.05);
 }
 
 * {
@@ -16,6 +18,7 @@ body {
   background-color: var(--main-bg-color);
   color: var(--text-color);
   min-height: 100vh;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 .container {
@@ -25,7 +28,40 @@ body {
 }
 
 .dashed-border {
-  border: 2px dashed #000;
+  border: 2px dashed var(--border-color);
   padding: 2rem;
   margin: 1rem 0;
+}
+
+/* Add transitions for smooth theme changes */
+* {
+  transition: background-color 0.3s ease,
+              color 0.3s ease,
+              border-color 0.3s ease,
+              box-shadow 0.3s ease;
+}
+
+button {
+  color: var(--text-color);
+}
+
+input, textarea, select {
+  color: var(--text-color);
+  background-color: var(--main-bg-color);
+  border-color: var(--border-color);
+}
+
+input::placeholder, textarea::placeholder {
+  color: var(--text-color);
+  opacity: 0.6;
+}
+
+.modal-overlay {
+  background-color: rgba(0, 0, 0, 0.5);
+}
+
+.modal-content {
+  background-color: var(--main-bg-color);
+  color: var(--text-color);
+  border-color: var(--border-color);
 }

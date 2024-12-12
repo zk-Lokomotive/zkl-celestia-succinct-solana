@@ -1,9 +1,11 @@
 <script>
   import { walletStore } from './stores/wallet.js';
   import { inboxStore } from './stores/inboxStore.js';
+  import { themeStore } from './stores/themeStore.js';
   import { fade, slide } from 'svelte/transition';
 
   $: userMessages = inboxStore.getMessagesForUser($walletStore.publicKey);
+  $: isDark = $themeStore.isDark;
 
   function copyToClipboard(text) {
     navigator.clipboard.writeText(text);
@@ -128,9 +130,9 @@
   }
 
   .transaction-link {
-    color: #000;
+    color: var(--text-color);
     text-decoration: none;
-    background: rgba(0, 0, 0, 0.05);
+    background: var(--hover-bg-color);
     padding: 0.4rem 0.8rem;
     border-radius: 4px;
     transition: all 0.2s;
@@ -138,7 +140,7 @@
   }
 
   .transaction-link:hover {
-    background: rgba(0, 0, 0, 0.1);
+    background: var(--hover-bg-color);
     transform: translateY(-1px);
   }
 
@@ -147,7 +149,8 @@
   }
   .inbox-container {
     margin-top: 2rem;
-    background: #feffaf;
+    background: var(--main-bg-color);
+    color: var(--text-color);
     overflow: hidden;
   }
 
@@ -202,8 +205,8 @@
   }
 
   .message-card {
-    background: rgba(255, 255, 255, 0.5);
-    border: 2px dashed rgba(0, 0, 0, 0.3);
+    background: var(--hover-bg-color);
+    border: 2px dashed var(--border-color);
     border-radius: 8px;
     overflow: hidden;
     transition: transform 0.2s ease, box-shadow 0.2s ease;
@@ -278,7 +281,7 @@
   .ipfs-hash {
     font-family: monospace;
     font-size: 0.9rem;
-    color: rgba(0, 0, 0, 0.8);
+    color: var(--text-color);
   }
 
   .action-buttons {
@@ -298,13 +301,13 @@
   }
 
   .view-button {
-    background: #000;
-    color: #feffaf;
+    background: var(--text-color);
+    color: var(--main-bg-color);
   }
 
   .copy-button {
-    background: rgba(0, 0, 0, 0.1);
-    color: #000;
+    background: var(--hover-bg-color);
+    color: var(--text-color);
   }
 
   .action-button:hover {
@@ -320,7 +323,7 @@
   .message-text {
     margin: 1rem 0;
     padding: 1rem;
-    background: rgba(0, 0, 0, 0.03);
+    background: var(--hover-bg-color);
     border-radius: 6px;
   }
 
@@ -337,7 +340,7 @@
 
   .sender-address {
     font-family: monospace;
-    background: rgba(0, 0, 0, 0.05);
+    background: var(--hover-bg-color);
     padding: 0.2rem 0.4rem;
     border-radius: 4px;
   }

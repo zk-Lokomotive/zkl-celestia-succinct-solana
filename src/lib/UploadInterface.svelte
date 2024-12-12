@@ -2,6 +2,7 @@
   import { createEventDispatcher } from 'svelte';
   import { fileStore } from './stores/fileStore.js';
   import { walletStore } from './stores/wallet.js';
+  import { themeStore } from './stores/themeStore.js';
   import FileUpload from './FileUpload.svelte';
   import RecipientSearch from './RecipientSearch.svelte';
   import PayloadPreview from './PayloadPreview.svelte';
@@ -17,6 +18,7 @@
   $: selectedFile = $fileStore.selectedFile;
   $: transferStatus = $fileStore.transferStatus;
   $: ipfsHash = $fileStore.ipfsHash;
+  $: isDark = $themeStore.isDark;
 
   async function handleTransfer() {
     if (!selectedFile || !recipientAddress) return;
@@ -51,7 +53,7 @@
 </script>
 
 <div class="modal-overlay">
-  <div class="upload-interface">
+  <div class="upload-interface" class:dark={isDark}>
     <div class="header">
       <h1>zkλ/upload</h1>
       <button 
@@ -157,6 +159,12 @@
     padding: 2rem;
     border-radius: 12px;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+    color: #000;
+  }
+
+  .upload-interface.dark {
+    background: #1a1a1a;
+    color: #fff;
   }
 
   .header {
@@ -166,6 +174,10 @@
     margin-bottom: 2rem;
     padding-bottom: 1rem;
     border-bottom: 2px dashed rgba(0, 0, 0, 0.3);
+  }
+
+  .dark .header {
+    border-bottom: 2px dashed rgba(255, 255, 255, 0.3);
   }
 
   h1 {
@@ -189,7 +201,7 @@
     height: 100%;
     border-radius: 50%;
     background: #ff4444;
-    border: 2px solid #000;
+    border: 2px solid currentColor;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -203,7 +215,7 @@
   }
 
   .close-icon {
-    color: #000;
+    color: currentColor;
     font-size: 28px;
     line-height: 1;
     font-weight: 400;
@@ -220,6 +232,10 @@
     height: 100%;
     width: 2px;
     background: rgba(0, 0, 0, 0.1);
+  }
+
+  .dark .divider {
+    background: rgba(255, 255, 255, 0.1);
   }
 
   .left-column {
@@ -255,11 +271,21 @@
     font-size: 0.9rem;
     cursor: pointer;
     transition: all 0.2s ease;
+    color: currentColor;
+  }
+
+  .dark .change-file-button {
+    background: rgba(255, 255, 255, 0.1);
+    border: 2px solid rgba(255, 255, 255, 0.2);
   }
 
   .change-file-button:hover {
     background: rgba(0, 0, 0, 0.15);
     transform: translateY(-1px);
+  }
+
+  .dark .change-file-button:hover {
+    background: rgba(255, 255, 255, 0.15);
   }
 
   .change-file-button:active {
@@ -268,6 +294,10 @@
 
   .file-size {
     color: rgba(0, 0, 0, 0.6);
+  }
+
+  .dark .file-size {
+    color: rgba(255, 255, 255, 0.6);
   }
 
   .recipient-field, .message-field {
@@ -288,12 +318,24 @@
     font-family: 'League Spartan', sans-serif;
     background: white;
     transition: all 0.2s ease;
+    color: #000;
+  }
+
+  .dark .input-field {
+    background: #2a2a2a;
+    border: 2px solid rgba(255, 255, 255, 0.1);
+    color: #fff;
   }
 
   .input-field:focus {
     border-color: rgba(0, 0, 0, 0.3);
     outline: none;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  }
+
+  .dark .input-field:focus {
+    border-color: rgba(255, 255, 255, 0.3);
+    box-shadow: 0 2px 4px rgba(255, 255, 255, 0.1);
   }
 
   textarea.input-field {
@@ -305,6 +347,10 @@
     align-self: flex-end;
     font-size: 0.8rem;
     color: rgba(0, 0, 0, 0.6);
+  }
+
+  .dark .character-count {
+    color: rgba(255, 255, 255, 0.6);
   }
 
   .send-button {
@@ -322,6 +368,11 @@
     cursor: pointer;
     transition: all 0.2s;
     margin-top: auto;
+  }
+
+  .dark .send-button {
+    background: #feffaf;
+    color: #000;
   }
 
   .send-button:not(:disabled):hover {
@@ -349,11 +400,19 @@
     gap: 1rem;
   }
 
+  .dark .selected-recipient {
+    background: rgba(255, 255, 255, 0.05);
+  }
+
   .recipient-avatar {
     width: 40px;
     height: 40px;
     border-radius: 50%;
     border: 2px solid rgba(0, 0, 0, 0.1);
+  }
+
+  .dark .recipient-avatar {
+    border: 2px solid rgba(255, 255, 255, 0.1);
   }
 
   .recipient-info {
@@ -373,5 +432,9 @@
     background: rgba(0, 0, 0, 0.1);
     padding: 0.2rem 0.4rem;
     border-radius: 4px;
+  }
+
+  .dark .recipient-address {
+    background: rgba(255, 255, 255, 0.1);
   }
 </style>
