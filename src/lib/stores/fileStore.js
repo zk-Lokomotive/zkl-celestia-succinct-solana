@@ -4,7 +4,6 @@ import { walletStore } from './wallet.js';
 import { uploadToIPFS, checkIPFSConnection } from '../services/ipfs.js';
 import { sendMemoTransaction } from '../services/solana.js';
 
-// Initial store state
 const initialState = {
   selectedFile: null,
   ipfsHash: null,
@@ -14,17 +13,11 @@ const initialState = {
   message: '',
   error: null,
   isUploading: false,
-  uploadProgress: 0,
-  ipfsConnected: false
+  platformFee: null
 };
 
 function createFileStore() {
   const { subscribe, set, update } = writable(initialState);
-
-  // Check IPFS connection on store creation
-  checkIPFSConnection().then(connected => {
-    update(store => ({ ...store, ipfsConnected: connected }));
-  });
 
   return {
     subscribe,
@@ -35,8 +28,7 @@ function createFileStore() {
       update(store => ({ 
         ...store, 
         isUploading: true, 
-        error: null,
-        uploadProgress: 0 
+        error: null 
       }));
       
       try {
@@ -54,8 +46,7 @@ function createFileStore() {
           selectedFile: file,
           ipfsHash: cid,
           ipfsUrl: url,
-          isUploading: false,
-          uploadProgress: 100
+          isUploading: false
         }));
 
         return { cid, url };
@@ -65,8 +56,7 @@ function createFileStore() {
         update(store => ({
           ...store,
           error: errorMessage,
-          isUploading: false,
-          uploadProgress: 0
+          isUploading: false
         }));
         throw new Error(errorMessage);
       }
@@ -87,18 +77,19 @@ function createFileStore() {
           throw new Error('Wallet not connected');
         }
 
-        if (!ipfsHash) {
+        if (!ipfsHash || !ipfsUrl) {
           throw new Error('No file uploaded');
         }
 
-        // Send Solana transaction with IPFS URL
-        const { signature, explorerUrl } = await sendMemoTransaction(
+        // Send Solana transaction with IPFS URL and platform fee
+        const { signature, explorerUrl, platformFee } = await sendMemoTransaction(
           wallet,
           recipientAddress,
-          ipfsUrl
+          ipfsUrl,
+          selectedFile.size
         );
 
-        // Important: Add message to RECIPIENT'S inbox, not sender's
+        // Add message to recipient's inbox
         inboxStore.addMessage(recipientAddress, {
           ipfsHash,
           ipfsUrl,
@@ -108,6 +99,7 @@ function createFileStore() {
           fileSize: selectedFile.size,
           transactionSignature: signature,
           transactionUrl: explorerUrl,
+          platformFee,
           timestamp: new Date().toISOString()
         });
 
@@ -115,13 +107,9 @@ function createFileStore() {
           ...store,
           transferStatus: 'completed',
           recipientAddress,
-          message
+          message,
+          platformFee
         }));
-
-        // Reset the store after successful transfer
-        setTimeout(() => {
-          set(initialState);
-        }, 2000);
 
         return true;
       } catch (error) {
@@ -138,4 +126,4 @@ function createFileStore() {
   };
 }
 
-export const fileStore = createFileStore(); 
+export const fileStore = createFileStore();
