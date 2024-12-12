@@ -62,7 +62,7 @@ export const connectWallet = async () => {
       username: null,
       avatar: null
     });
-    return false;
+    throw error;
   }
 };
 

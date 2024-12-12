@@ -55,8 +55,12 @@ export async function sendMemoTransaction(wallet, recipientAddress, ipfsUrl, fil
       })
     );
     
-    // Add memo instruction with IPFS URL
-    transaction.add(createMemoInstruction(ipfsUrl));
+    // Add memo instruction with IPFS URL and recipient address
+    const memoText = JSON.stringify({
+      url: ipfsUrl,
+      recipient: recipientAddress
+    });
+    transaction.add(createMemoInstruction(memoText));
     
     // Get recent blockhash
     const { blockhash } = await connection.getLatestBlockhash('finalized');
