@@ -3,6 +3,7 @@
   import { onMount, onDestroy } from 'svelte';
   import { fade, slide } from 'svelte/transition';
   import { createEventDispatcher } from 'svelte';
+  import SettingsModal from './SettingsModal.svelte';
 
   const dispatch = createEventDispatcher();
   const ADMIN_WALLET = "B99ZeAHD4ZxGfSwbQRqbpQPpAigzwDCyx4ShHTcYCAtS";
@@ -16,6 +17,7 @@
   ];
 
   let showMenu = false;
+  let showSettings = false;
   let accountButton;
   let isConnecting = false;
 
@@ -55,6 +57,11 @@
       showMenu = false;
     }
   }
+
+  function handleOpenSettings() {
+    showSettings = true;
+    showMenu = false;
+  }
 </script>
 
 <nav>
@@ -85,8 +92,9 @@
           
           {#if showMenu}
             <button
+              type="button"
               class="menu-container" 
-              transition:slide={{ duration: 200, y: -10 }}
+              transition:slide={{ duration: 200 }}
               on:click|stopPropagation
               on:keydown|stopPropagation
             >
@@ -110,11 +118,11 @@
                     Manage Users
                   </button>
                 {/if}
-                <button class="menu-item">
-                  My Files
+                <button class="menu-item" on:click={handleOpenSettings}>
+                  Settings
                 </button>
                 <button class="menu-item">
-                  Settings
+                  My Files
                 </button>
                 <button class="menu-item">
                   Help Center
@@ -141,6 +149,10 @@
     </div>
   </div>
 </nav>
+
+{#if showSettings}
+  <SettingsModal on:close={() => showSettings = false} />
+{/if}
 
 <style>
   nav {

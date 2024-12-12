@@ -4,6 +4,7 @@
   import { walletStore } from './stores/wallet.js';
   import FileUpload from './FileUpload.svelte';
   import RecipientSearch from './RecipientSearch.svelte';
+  import PayloadPreview from './PayloadPreview.svelte';
   
   const dispatch = createEventDispatcher();
   const MAX_MESSAGE_LENGTH = 128;
@@ -11,7 +12,6 @@
   let recipientAddress = "";
   let message = "";
   let isTransferring = false;
-  let isUploading = false;
   let selectedRecipient = null;
   
   $: selectedFile = $fileStore.selectedFile;
@@ -27,23 +27,12 @@
       // Reset form after successful transfer
       recipientAddress = "";
       message = "";
+      selectedRecipient = null;
+      dispatch('close');
     } catch (error) {
       console.error('Transfer failed:', error);
     } finally {
       isTransferring = false;
-    }
-  }
-
-  async function handleUploadToIPFS() {
-    if (!selectedFile) return;
-    
-    isUploading = true;
-    try {
-      await fileStore.uploadFile(selectedFile);
-    } catch (error) {
-      console.error('IPFS upload failed:', error);
-    } finally {
-      isUploading = false;
     }
   }
 
@@ -59,7 +48,6 @@
     recipientAddress = "";
     message = "";
   }
-
 </script>
 
 <div class="modal-overlay">
@@ -71,7 +59,7 @@
         on:click={() => dispatch('close')}
       >
         <div class="close-button-inner">
-          <span class="close-icon">x</span>
+          <span class="close-icon">×</span>
         </div>
       </button>
     </div>
@@ -91,42 +79,42 @@
                 class="change-file-button" 
                 on:click={handleChangeFile}
               >
-              Change File
-            </button>
-          </div>
+                Change File
+              </button>
+            </div>
 
-          <div class="recipient-field">
-            <label for="recipient">Recipient</label>
-            <RecipientSearch on:select={handleRecipientSelect} />
-            
-            {#if selectedRecipient}
-              <div class="selected-recipient">
-                <img 
-                  src={selectedRecipient.avatar} 
-                  alt="" 
-                  class="recipient-avatar"
-                />
-                <div class="recipient-info">
-                  <span class="recipient-name">{selectedRecipient.username}</span>
-                  <code class="recipient-address">{selectedRecipient.publicKey}</code>
+            <div class="recipient-field">
+              <label for="recipient">Recipient</label>
+              <RecipientSearch on:select={handleRecipientSelect} />
+              
+              {#if selectedRecipient}
+                <div class="selected-recipient">
+                  <img 
+                    src={selectedRecipient.avatar} 
+                    alt="" 
+                    class="recipient-avatar"
+                  />
+                  <div class="recipient-info">
+                    <span class="recipient-name">{selectedRecipient.username}</span>
+                    <code class="recipient-address">{selectedRecipient.publicKey}</code>
+                  </div>
                 </div>
-              </div>
-            {/if}
-          </div>
+              {/if}
+            </div>
 
-              <div class="message-field">
-                <label for="message">Message</label>
-                <textarea 
-                  id="message"
-                  bind:value={message}
-                  maxlength={MAX_MESSAGE_LENGTH}
-                  placeholder="Add a note (optional)"
-                  class="input-field"
-                ></textarea>
-                <span class="character-count">{message.length}/{MAX_MESSAGE_LENGTH}</span>
-              </div>
+            <div class="message-field">
+              <label for="message">Message</label>
+              <textarea 
+                id="message"
+                bind:value={message}
+                maxlength={MAX_MESSAGE_LENGTH}
+                placeholder="Add a note (optional)"
+                class="input-field"
+              ></textarea>
+              <span class="character-count">{message.length}/{MAX_MESSAGE_LENGTH}</span>
+            </div>
 
-              <button 
+            <button 
               class="send-button" 
               on:click={handleTransfer}
               disabled={isTransferring || !recipientAddress}
@@ -141,23 +129,7 @@
       <div class="divider"></div>
 
       <div class="right-column">
-        <div class="preview-frame">
-          <div class="preview-content">
-            <h3>Payload Preview</h3>
-            {#if selectedFile}
-              <p>File selected successfully!</p>
-              <div class="file-info">
-                <p>Name: {selectedFile.name}</p>
-                <p>Size: {(selectedFile.size / (1024 * 1024)).toFixed(2)} MiB</p>
-              </div>
-              <p class="security-note">
-                File will be encrypted and stored on IPFS.
-              </p>
-            {:else}
-              <p>Upload a file to see its preview.</p>
-            {/if}
-          </div>
-        </div>
+        <PayloadPreview {selectedFile} {ipfsHash} />
       </div>
     </div>
   </div>
@@ -256,6 +228,12 @@
     flex-direction: column;
   }
 
+  .right-column {
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+  }
+
   .file-details {
     display: flex;
     flex-direction: column;
@@ -287,33 +265,6 @@
   .change-file-button:active {
     transform: translateY(1px);
   }
-
-  /* .action-buttons {
-    display: flex;
-    gap: 1rem;
-  }
-
-  .ipfs-button {
-    padding: 0.8rem 1.5rem;
-    background: #000;
-    color: #feffaf;
-    border: none;
-    border-radius: 8px;
-    font-family: 'League Spartan', sans-serif;
-    font-size: 1rem;
-    cursor: pointer;
-    transition: all 0.2s;
-  } */
-
-  /* .ipfs-button:not(:disabled):hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-  }
-
-  .ipfs-button:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  } */
 
   .file-size {
     color: rgba(0, 0, 0, 0.6);
@@ -373,10 +324,6 @@
     margin-top: auto;
   }
 
-  .envelope-icon {
-    font-size: 1.4rem;
-  }
-
   .send-button:not(:disabled):hover {
     transform: translateY(-2px);
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
@@ -390,53 +337,6 @@
   .send-button:disabled {
     opacity: 0.5;
     cursor: not-allowed;
-  }
-
-  .right-column {
-    padding: 1rem;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .preview-frame {
-    border: 2px dashed rgba(0, 0, 0, 0.3);
-    padding: 2rem;
-    width: 100%;
-    height: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .preview-content {
-    text-align: center;
-  }
-
-   .fingerprint {
-    margin: 2rem 0;
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    justify-content: center;
-  }
-
-  .copy-button {
-    padding: 0.5rem 1rem;
-    background: rgba(0, 0, 0, 0.1);
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    transition: background 0.2s;
-  }
-
-  .copy-button:hover {
-    background: rgba(0, 0, 0, 0.2);
-  } 
-
-  .security-note {
-    font-size: 0.9rem;
-    color: rgba(0, 0, 0, 0.6);
   }
 
   .selected-recipient {
@@ -474,5 +374,4 @@
     padding: 0.2rem 0.4rem;
     border-radius: 4px;
   }
-
 </style>
