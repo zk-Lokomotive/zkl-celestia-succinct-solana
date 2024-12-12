@@ -1,5 +1,5 @@
 <script>
-  import { walletStore, disconnectWallet } from './stores/wallet.js';
+  import { walletStore, connectWallet, disconnectWallet } from './stores/wallet.js';
   import { onMount, onDestroy } from 'svelte';
   import { fade, slide } from 'svelte/transition';
   import { createEventDispatcher } from 'svelte';
@@ -17,6 +17,7 @@
 
   let showMenu = false;
   let accountButton;
+  let isConnecting = false;
 
   $: isAdmin = $walletStore.connected && $walletStore.publicKey === ADMIN_WALLET;
 
@@ -33,6 +34,15 @@
   onDestroy(() => {
     document.removeEventListener('click', handleClickOutside);
   });
+
+  async function handleLogin() {
+    isConnecting = true;
+    try {
+      await connectWallet();
+    } finally {
+      isConnecting = false;
+    }
+  }
 
   async function handleLogout() {
     await disconnectWallet();
@@ -74,10 +84,11 @@
           </button>
           
           {#if showMenu}
-            <div 
+            <button
               class="menu-container" 
               transition:slide={{ duration: 200, y: -10 }}
               on:click|stopPropagation
+              on:keydown|stopPropagation
             >
               <div class="menu-header">
                 <img 
@@ -115,9 +126,17 @@
               <button class="logout-button" on:click={handleLogout}>
                 Logout
               </button>
-            </div>
+            </button>
           {/if}
         </div>
+      {:else}
+        <button 
+          class="connect-wallet-button" 
+          on:click={handleLogin}
+          disabled={isConnecting}
+        >
+          {isConnecting ? 'Connecting...' : 'Connect Wallet'}
+        </button>
       {/if}
     </div>
   </div>
@@ -166,6 +185,33 @@
 
   a:hover {
     opacity: 0.7;
+  }
+
+  .connect-wallet-button {
+    padding: 0.75rem 1.5rem;
+    background: #000;
+    color: #feffaf;
+    border: none;
+    border-radius: 8px;
+    font-family: 'League Spartan', sans-serif;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .connect-wallet-button:not(:disabled):hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  }
+
+  .connect-wallet-button:not(:disabled):active {
+    transform: translateY(1px);
+    box-shadow: none;
+  }
+
+  .connect-wallet-button:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
   }
 
   .wallet-info {
