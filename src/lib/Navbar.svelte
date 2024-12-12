@@ -9,11 +9,11 @@
   const ADMIN_WALLET = "B99ZeAHD4ZxGfSwbQRqbpQPpAigzwDCyx4ShHTcYCAtS";
 
   const navItems = [
-    { text: 'X/Twitter', href: '#' },
-    { text: 'GitHub', href: '#' },
-    { text: 'Discord', href: '#' },
-    { text: 'Documentation', href: '#' },
-    { text: 'Team', href: '#' }
+    { text: 'X/Twitter', href: 'https://x.com/zklokomotive' },
+    { text: 'GitHub', href: 'https://github.com/zk-Lokomotive' },
+    { text: 'DoraHacks', href: 'https://dorahacks.io/buidl/11403' },
+    { text: 'Documentation', href: 'https://github.com/zk-Lokomotive/zkl-docs' },
+    { text: 'Team', href: 'https://zk-lokomotive.xyz/' }
   ];
 
   let showMenu = false;
