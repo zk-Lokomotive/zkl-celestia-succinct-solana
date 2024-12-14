@@ -154,12 +154,14 @@
   .upload-interface {
     width: 90%;
     max-width: 1200px;
-    height: 90vh;
-    background: #feffaf;
+    max-height: 90vh;
+    background: var(--main-bg-color);
     padding: 2rem;
     border-radius: 12px;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
     color: #000;
+    display: flex;
+    flex-direction: column;
   }
 
   .upload-interface.dark {
@@ -226,6 +228,7 @@
     grid-template-columns: 1fr 2px 1fr;
     gap: 2rem;
     height: calc(100% - 100px);
+    overflow: hidden;
   }
 
   .divider {
@@ -238,31 +241,41 @@
     background: rgba(255, 255, 255, 0.1);
   }
 
-  .left-column {
+  .left-column, .right-column {
     padding: 1rem;
     display: flex;
     flex-direction: column;
-  }
-
-  .right-column {
-    padding: 1rem;
-    display: flex;
-    flex-direction: column;
+    overflow-y: auto;
+    min-height: 0;
   }
 
   .file-details {
     display: flex;
     flex-direction: column;
     gap: 1.5rem;
+    height: 100%;
+    min-height: 0;
   }
 
   .file-header {
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
+    flex-shrink: 0;
+  }
+
+  .file-header > div {
+    flex: 1;
+    margin-right: 1rem;
+  }
+
+  h2 {
+    margin: 0;
+    word-break: break-word;
   }
 
   .change-file-button {
+    white-space: nowrap;
     padding: 0.5rem 1rem;
     background: rgba(0, 0, 0, 0.1);
     border: 2px solid rgba(0, 0, 0, 0.2);
@@ -272,6 +285,7 @@
     cursor: pointer;
     transition: all 0.2s ease;
     color: currentColor;
+    flex-shrink: 0;
   }
 
   .dark .change-file-button {

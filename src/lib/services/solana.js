@@ -36,7 +36,7 @@ function calculatePlatformFee(fileSize) {
 
 export async function sendMemoTransaction(wallet, recipientAddress, ipfsUrl, fileSize) {
   try {
-    if (!window.solflare?.isConnected) {
+    if (!wallet?.publicKey || !window.solflare?.isConnected) {
       throw new Error('Wallet not connected');
     }
 

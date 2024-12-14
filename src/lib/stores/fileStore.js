@@ -73,8 +73,8 @@ function createFileStore() {
         const { ipfsHash, ipfsUrl, selectedFile } = get({ subscribe });
         const wallet = get(walletStore);
 
-        if (!wallet.connected) {
-          throw new Error('Wallet not connected');
+        if (!wallet?.connected || !wallet?.publicKey) {
+          throw new Error('Please connect your wallet first');
         }
 
         if (!ipfsHash || !ipfsUrl) {
