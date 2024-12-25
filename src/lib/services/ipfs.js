@@ -4,7 +4,10 @@ import { create } from 'ipfs-http-client';
 const ipfs = create({
   host: 'localhost',
   port: 5001,
-  protocol: 'http'
+  protocol: 'http',
+  headers: {
+    'Access-Control-Allow-Origin': '*'
+  }
 });
 
 // Local IPFS Gateway URL
@@ -54,6 +57,23 @@ export async function checkIPFSConnection() {
     return true;
   } catch (error) {
     console.error('Failed to connect to IPFS node:', error);
+    if (error.message.includes('ECONNREFUSED')) {
+      console.error('IPFS daemon is not running. Please start it with: ipfs daemon');
+    }
+    return false;
+  }
+}
+
+// Yeni bir fonksiyon ekleyelim - IPFS bağlantısını test etmek için
+export async function testIPFSConnection() {
+  try {
+    const response = await fetch('http://localhost:5001/api/v0/version');
+    if (!response.ok) throw new Error('IPFS API not responding');
+    const data = await response.json();
+    console.log('IPFS API Response:', data);
+    return true;
+  } catch (error) {
+    console.error('IPFS Connection Test Failed:', error);
     return false;
   }
 }
