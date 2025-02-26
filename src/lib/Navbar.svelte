@@ -13,7 +13,7 @@
     { text: 'X/Twitter', href: 'https://x.com/zklokomotive' },
     { text: 'GitHub', href: 'https://github.com/zk-Lokomotive' },
     { text: 'DoraHacks', href: 'https://dorahacks.io/buidl/11403' },
-    { text: 'Documentation', href: 'https://github.com/zk-Lokomotive/zkl-docs' },
+    { text: 'Documentation', href: 'https://docs.zk-lokomotive.xyz/' },
     { text: 'Team', href: 'https://zk-lokomotive.xyz/' }
   ];
 

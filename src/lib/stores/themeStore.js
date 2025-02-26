@@ -23,6 +23,9 @@ function createThemeStore() {
     document.documentElement.style.setProperty('--text-color', '#feffaf');
     document.documentElement.style.setProperty('--border-color', 'rgba(254, 255, 175, 0.3)');
     document.documentElement.style.setProperty('--hover-bg-color', 'rgba(254, 255, 175, 0.1)');
+    document.documentElement.style.setProperty('--font-family', "'Space Grotesk', sans-serif");
+    document.documentElement.style.setProperty('--font-stretch', 'expanded');
+    document.documentElement.style.setProperty('--letter-spacing', '0.05em');
   }
 
   function applyLightTheme() {
@@ -30,6 +33,9 @@ function createThemeStore() {
     document.documentElement.style.setProperty('--text-color', '#000000');
     document.documentElement.style.setProperty('--border-color', 'rgba(0, 0, 0, 0.3)');
     document.documentElement.style.setProperty('--hover-bg-color', 'rgba(0, 0, 0, 0.05)');
+    document.documentElement.style.setProperty('--font-family', "'Space Grotesk', sans-serif");
+    document.documentElement.style.setProperty('--font-stretch', 'expanded');
+    document.documentElement.style.setProperty('--letter-spacing', '0.05em');
   }
 
   return {

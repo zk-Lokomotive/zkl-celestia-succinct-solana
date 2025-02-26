@@ -1,13 +1,12 @@
 import { create } from 'ipfs-http-client';
 
 // Connect to local IPFS node
+// ipfs-http-client v60 için doğru kullanım
 const ipfs = create({
   host: 'localhost',
   port: 5001,
   protocol: 'http',
-  headers: {
-    'Access-Control-Allow-Origin': '*'
-  }
+  apiPath: '/api/v0'
 });
 
 // Local IPFS Gateway URL
@@ -52,23 +51,45 @@ export function getGatewayUrl(cid) {
 // Verify IPFS node connection
 export async function checkIPFSConnection() {
   try {
-    const version = await ipfs.version();
-    console.log('Connected to IPFS node version:', version);
+    // IPFS API isteklerinin POST yöntemiyle yapılması gerekiyor
+    const response = await fetch('http://localhost:5001/api/v0/version', {
+      method: 'POST',
+      headers: {
+        'Accept': 'application/json'
+      }
+    });
+    
+    if (!response.ok) {
+      throw new Error(`IPFS API responded with status: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    console.log('Connected to IPFS node version:', data.Version);
     return true;
   } catch (error) {
     console.error('Failed to connect to IPFS node:', error);
-    if (error.message.includes('ECONNREFUSED')) {
+    if (error.message && error.message.includes('ECONNREFUSED')) {
       console.error('IPFS daemon is not running. Please start it with: ipfs daemon');
     }
     return false;
   }
 }
 
-// Yeni bir fonksiyon ekleyelim - IPFS bağlantısını test etmek için
+// Yeni bir fonksiyon - IPFS bağlantısını test etmek için
 export async function testIPFSConnection() {
   try {
-    const response = await fetch('http://localhost:5001/api/v0/version');
-    if (!response.ok) throw new Error('IPFS API not responding');
+    // IPFS API isteklerinin POST yöntemiyle yapılması gerekiyor
+    const response = await fetch('http://localhost:5001/api/v0/version', {
+      method: 'POST',
+      headers: {
+        'Accept': 'application/json'
+      }
+    });
+    
+    if (!response.ok) {
+      throw new Error(`IPFS API not responding, status: ${response.status}`);
+    }
+    
     const data = await response.json();
     console.log('IPFS API Response:', data);
     return true;

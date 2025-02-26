@@ -1,17 +1,21 @@
-@import url('https://fonts.googleapis.com/css2?family=League+Spartan:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap');
 
 :root {
   --main-bg-color: #feffaf;
   --text-color: #000000;
   --border-color: rgba(0, 0, 0, 0.3);
   --hover-bg-color: rgba(0, 0, 0, 0.05);
+  --font-family: 'Space Grotesk', sans-serif;
+  --font-stretch: expanded; /* Bu özellik fontun genişliğini artırır (wide efekti) */
 }
 
 * {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
-  font-family: 'League Spartan', sans-serif;
+  font-family: var(--font-family);
+  font-stretch: var(--font-stretch);
+  letter-spacing: var(--letter-spacing);
 }
 
 body {
