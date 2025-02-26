@@ -6,6 +6,10 @@
   import FileUpload from './FileUpload.svelte';
   import RecipientSearch from './RecipientSearch.svelte';
   import PayloadPreview from './PayloadPreview.svelte';
+  import CelestiaStatus from './CelestiaStatus.svelte';
+  import CelestiaTransactions from './CelestiaTransactions.svelte';
+  import ZkStatus from './ZkStatus.svelte';
+  import HelpPage from './HelpPage.svelte';
   
   const dispatch = createEventDispatcher();
   const MAX_MESSAGE_LENGTH = 128;
@@ -14,11 +18,19 @@
   let message = "";
   let isTransferring = false;
   let selectedRecipient = null;
+  let showHelp = false;
   
   $: selectedFile = $fileStore.selectedFile;
   $: transferStatus = $fileStore.transferStatus;
   $: ipfsHash = $fileStore.ipfsHash;
   $: isDark = $themeStore.isDark;
+  // New reactive variables for Celestia and ZK
+  $: celestiaHeight = $fileStore.celestiaHeight;
+  $: celestiaTxHash = $fileStore.celestiaTxHash;
+  $: celestiaUrl = $fileStore.celestiaUrl;
+  $: zkProofData = $fileStore.zkProofData;
+  $: isUsingCelestia = $fileStore.isUsingCelestia;
+  $: isUsingZKP = $fileStore.isUsingZKP;
 
   async function handleTransfer() {
     if (!selectedFile || !recipientAddress) return;
@@ -50,26 +62,56 @@
     recipientAddress = "";
     message = "";
   }
+  
+  // Toggle Celestia and ZK usage
+  function toggleCelestiaUsage() {
+    fileStore.toggleCelestia(!isUsingCelestia);
+  }
+  
+  function toggleZKPUsage() {
+    fileStore.toggleZKP(!isUsingZKP);
+  }
+
+  function toggleHelp() {
+    showHelp = !showHelp;
+  }
 </script>
 
 <div class="modal-overlay">
   <div class="upload-interface" class:dark={isDark}>
     <div class="header">
       <h1>zkλ/upload</h1>
-      <button 
-        class="close-button" 
-        on:click={() => dispatch('close')}
-      >
-        <div class="close-button-inner">
-          <span class="close-icon">×</span>
-        </div>
-      </button>
+      <div class="header-buttons">
+        <button 
+          class="help-button" 
+          on:click={toggleHelp}
+          aria-label="Yardım"
+        >
+          <span class="help-icon">?</span>
+        </button>
+        <button 
+          class="close-button" 
+          on:click={() => dispatch('close')}
+        >
+          <div class="close-button-inner">
+            <span class="close-icon">×</span>
+          </div>
+        </button>
+      </div>
     </div>
 
     <div class="content">
       <div class="left-column">
+        <!-- Celestia bağlantı durumu -->
+        <CelestiaStatus />
+        
+        <!-- ZK devre durumu -->
+        <ZkStatus />
+        
         {#if !selectedFile}
           <FileUpload />
+          <!-- Celestia işlem geçmişi -->
+          <CelestiaTransactions />
         {:else}
           <div class="file-details">
             <div class="file-header">
@@ -83,6 +125,33 @@
               >
                 Change File
               </button>
+            </div>
+            
+            <!-- Advanced Features Section -->
+            <div class="advanced-options">
+              <h3>Advanced Features</h3>
+              <div class="option-row">
+                <label class="switch">
+                  <input 
+                    type="checkbox" 
+                    bind:checked={isUsingCelestia}
+                    on:change={toggleCelestiaUsage}
+                  >
+                  <span class="slider"></span>
+                </label>
+                <span>Celestia Data Availability</span>
+              </div>
+              <div class="option-row">
+                <label class="switch">
+                  <input 
+                    type="checkbox" 
+                    bind:checked={isUsingZKP}
+                    on:change={toggleZKPUsage}
+                  >
+                  <span class="slider"></span>
+                </label>
+                <span>Zero Knowledge Verification</span>
+              </div>
             </div>
 
             <div class="recipient-field">
@@ -131,10 +200,21 @@
       <div class="divider"></div>
 
       <div class="right-column">
-        <PayloadPreview {selectedFile} {ipfsHash} />
+        <PayloadPreview 
+          {selectedFile} 
+          {ipfsHash} 
+          {celestiaHeight}
+          {celestiaTxHash}
+          {celestiaUrl}
+          {zkProofData}
+        />
       </div>
     </div>
   </div>
+
+  {#if showHelp}
+    <HelpPage on:close={toggleHelp} />
+  {/if}
 </div>
 
 <style>
@@ -186,6 +266,43 @@
     font-family: 'League Spartan', sans-serif;
     font-size: 2.5rem;
     font-weight: 600;
+  }
+
+  .header-buttons {
+    display: flex;
+    gap: 0.75rem;
+  }
+
+  .help-button {
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    outline: none;
+  }
+  
+  .help-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    background: #4285F4;
+    color: white;
+    font-weight: bold;
+    font-size: 20px;
+    border: 2px solid currentColor;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  }
+  
+  .help-button:hover .help-icon {
+    background: #5294FF;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
   }
 
   .close-button {
@@ -450,5 +567,80 @@
 
   .dark .recipient-address {
     background: rgba(255, 255, 255, 0.1);
+  }
+
+  /* New toggle styles */
+  .advanced-options {
+    background-color: rgba(0, 0, 0, 0.03);
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 1.5rem;
+  }
+  
+  .dark .advanced-options {
+    background-color: rgba(255, 255, 255, 0.05);
+  }
+  
+  .advanced-options h3 {
+    font-size: 1rem;
+    margin-top: 0;
+    margin-bottom: 0.5rem;
+  }
+  
+  .option-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 0.5rem 0;
+  }
+  
+  /* Toggle Switch Styles */
+  .switch {
+    position: relative;
+    display: inline-block;
+    width: 48px;
+    height: 24px;
+  }
+  
+  .switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+  }
+  
+  .slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #ccc;
+    transition: .4s;
+    border-radius: 24px;
+  }
+  
+  .slider:before {
+    position: absolute;
+    content: "";
+    height: 18px;
+    width: 18px;
+    left: 3px;
+    bottom: 3px;
+    background-color: white;
+    transition: .4s;
+    border-radius: 50%;
+  }
+  
+  input:checked + .slider {
+    background-color: #2196F3;
+  }
+  
+  input:focus + .slider {
+    box-shadow: 0 0 1px #2196F3;
+  }
+  
+  input:checked + .slider:before {
+    transform: translateX(24px);
   }
 </style>

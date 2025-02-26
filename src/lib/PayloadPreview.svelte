@@ -1,7 +1,16 @@
 <script>
     import { fade, fly } from 'svelte/transition';
+    import { themeStore } from './stores/themeStore.js';
     export let selectedFile = null;
     export let ipfsHash = null;
+  
+    // New props
+    export let celestiaHeight = null;
+    export let celestiaTxHash = null;
+    export let celestiaUrl = null;
+    export let zkProofData = null;
+
+    $: isDark = $themeStore.isDark;
   
     let isHovered = false;
     let rotation = { x: 0, y: 0 };
@@ -19,6 +28,53 @@
       rotation.x = (y - centerY) / 20;
       rotation.y = (x - centerX) / 20;
     }
+
+    // Truncate filename
+    function truncateFilename(filename, maxLength = 20) {
+      if (!filename) return '';
+      
+      if (filename.length <= maxLength) return filename;
+      
+      const extension = filename.split('.').pop();
+      const nameWithoutExt = filename.substring(0, filename.length - extension.length - 1);
+      
+      if (nameWithoutExt.length <= maxLength - 6) return filename;
+      
+      return `${nameWithoutExt.substring(0, maxLength - 6)}...${extension}`;
+    }
+    
+    // Truncate hashes
+    function truncateHash(hash, start = 6, end = 4) {
+      if (!hash) return '';
+      return `${hash.substring(0, start)}...${hash.substring(hash.length - end)}`;
+    }
+
+    // Safe getters for file properties
+    function getFileName() {
+      return selectedFile && selectedFile.name ? selectedFile.name : 'Unknown';
+    }
+    
+    function getFileSize() {
+      return selectedFile && typeof selectedFile.size === 'number' 
+        ? (selectedFile.size / 1024).toFixed(2) 
+        : '0';
+    }
+    
+    function getFileType() {
+      return selectedFile && selectedFile.type ? selectedFile.type : 'Unknown';
+    }
+    
+    // Safe getter for zkProofData timestamp
+    function getProofTimestamp() {
+      try {
+        if (zkProofData && typeof zkProofData === 'object' && zkProofData.timestamp) {
+          return new Date(zkProofData.timestamp).toLocaleString();
+        }
+        return 'Unknown';
+      } catch (e) {
+        return 'Unknown';
+      }
+    }
   </script>
   
   <div 
@@ -30,48 +86,103 @@
       rotation = { x: 0, y: 0 };
     }}
     style="transform: perspective(1000px) rotateX({rotation.x}deg) rotateY({rotation.y}deg)"
+    class:dark={isDark}
+    role="region"
+    aria-label="File Preview Card"
   >
     <div class="preview-content">
-      <h3>Payload Preview</h3>
+      <h2 class="preview-title">File Summary</h2>
       
-      {#if selectedFile}
-        <div class="preview-card" in:fly={{ y: 20, duration: 400 }}>
-          <div class="file-icon">📄</div>
-          <div class="file-details">
-            <p class="file-name">{selectedFile.name}</p>
-            <p class="file-size">{(selectedFile.size / (1024 * 1024)).toFixed(2)} MiB</p>
-          </div>
-          
-          {#if ipfsHash}
-            <div class="ipfs-details" in:fade={{ duration: 300, delay: 200 }}>
-              <code class="ipfs-hash">IPFS: {ipfsHash}</code>
-              <div class="status-indicator">
-                <span class="dot"></span>
-                Ready to transfer
-              </div>
-            </div>
-          {/if}
-        </div>
-        
-        <div class="security-info" in:fade={{ duration: 300, delay: 400 }}>
-          <div class="security-item">
-            <span class="icon">🔒</span>
-            <span>End-to-end encrypted</span>
-          </div>
-          <div class="security-item">
-            <span class="icon">⚡</span>
-            <span>Decentralized storage</span>
-          </div>
-          <div class="security-item">
-            <span class="icon">✨</span>
-            <span>Zero-knowledge proof</span>
-          </div>
+      {#if !selectedFile && !ipfsHash}
+        <div class="empty-state">
+          <p>Upload your file to see its preview here.</p>
         </div>
       {:else}
-        <div class="empty-state" in:fade>
-          <div class="upload-icon">↑</div>
-          <p>Upload a file to see its preview</p>
-        </div>
+        {#if selectedFile}
+          <div class="preview-section">
+            <h3>File Information</h3>
+            <div class="preview-detail">
+              <span class="detail-label">Filename:</span>
+              <span class="detail-value">{truncateFilename(getFileName())}</span>
+            </div>
+            <div class="preview-detail">
+              <span class="detail-label">Size:</span>
+              <span class="detail-value">{getFileSize()} KB</span>
+            </div>
+            <div class="preview-detail">
+              <span class="detail-label">Type:</span>
+              <span class="detail-value">{getFileType()}</span>
+            </div>
+          </div>
+        {/if}
+        
+        {#if ipfsHash}
+          <div class="preview-section">
+            <h3>IPFS Information</h3>
+            <div class="preview-detail">
+              <span class="detail-label">CID:</span>
+              <span class="detail-value hash">{truncateHash(ipfsHash)}</span>
+            </div>
+            <div class="detail-actions">
+              <button class="action-button">Open in IPFS</button>
+              <button class="action-button">Copy CID</button>
+            </div>
+          </div>
+        {/if}
+
+        <!-- Celestia Data Availability Information -->
+        {#if celestiaTxHash && celestiaHeight}
+          <div class="preview-section">
+            <h3>Celestia Data Availability</h3>
+            <div class="preview-detail">
+              <span class="detail-label">Block Height:</span>
+              <span class="detail-value">{celestiaHeight}</span>
+            </div>
+            <div class="preview-detail">
+              <span class="detail-label">Transaction Hash:</span>
+              <span class="detail-value hash">{truncateHash(celestiaTxHash)}</span>
+            </div>
+            <div class="detail-actions">
+              {#if celestiaUrl}
+                <a 
+                  href={celestiaUrl} 
+                  target="_blank" 
+                  rel="noopener noreferrer" 
+                  class="action-button"
+                >
+                  Open in Celestia Explorer
+                </a>
+              {/if}
+            </div>
+            <p class="info-text">This file has been permanently stored on the Celestia data layer.</p>
+          </div>
+        {:else if ipfsHash}
+          <div class="preview-section disabled">
+            <h3>Celestia DA</h3>
+            <p class="info-text">No Celestia DA record has been created for this file.</p>
+          </div>
+        {/if}
+
+        <!-- Zero Knowledge Proof Information -->
+        {#if zkProofData}
+          <div class="preview-section">
+            <h3>Zero Knowledge Proof</h3>
+            <div class="preview-detail">
+              <span class="detail-label">Status:</span>
+              <span class="detail-value success">Verified ✓</span>
+            </div>
+            <div class="preview-detail">
+              <span class="detail-label">Created:</span>
+              <span class="detail-value">{getProofTimestamp()}</span>
+            </div>
+            <p class="info-text">A privacy-preserving verification proof has been created for this file.</p>
+          </div>
+        {:else if ipfsHash}
+          <div class="preview-section disabled">
+            <h3>Zero Knowledge Proof</h3>
+            <p class="info-text">No ZK Proof has been created for this file.</p>
+          </div>
+        {/if}
       {/if}
     </div>
   </div>
@@ -86,6 +197,10 @@
       border: 2px dashed rgba(0, 0, 0, 0.3);
     }
   
+    .preview-container.dark {
+      background-color: rgba(255, 255, 255, 0.05);
+    }
+  
     .preview-content {
       padding: 2rem;
       height: 100%;
@@ -94,99 +209,15 @@
       gap: 2rem;
     }
   
-    h3 {
-      font-family: 'League Spartan', sans-serif;
-      font-size: 1.8rem;
-      margin: 0;
-      text-align: center;
+    .preview-title {
+      margin-top: 0;
+      margin-bottom: 1.5rem;
+      border-bottom: 1px dashed rgba(0, 0, 0, 0.1);
+      padding-bottom: 0.5rem;
     }
   
-    .preview-card {
-      background: rgba(255, 255, 255, 0.5);
-      padding: 1.5rem;
-      border-radius: 8px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 1rem;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-    }
-  
-    .file-icon {
-      font-size: 3rem;
-    }
-  
-    .file-details {
-      text-align: center;
-    }
-  
-    .file-name {
-      font-weight: 500;
-      margin: 0;
-    }
-  
-    .file-size {
-      color: rgba(0, 0, 0, 0.6);
-      margin: 0.5rem 0 0 0;
-    }
-  
-    .ipfs-details {
-      width: 100%;
-      padding-top: 1rem;
-      margin-top: 1rem;
-      border-top: 1px dashed rgba(0, 0, 0, 0.3);
-      text-align: center;
-    }
-  
-    .ipfs-hash {
-      display: block;
-      font-family: monospace;
-      background: rgba(0, 0, 0, 0.05);
-      padding: 0.5rem;
-      border-radius: 4px;
-      margin-bottom: 0.5rem;
-    }
-  
-    .status-indicator {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 0.5rem;
-      font-size: 0.9rem;
-      color: rgba(0, 0, 0, 0.8);
-    }
-  
-    .dot {
-      width: 8px;
-      height: 8px;
-      background: #4CAF50;
-      border-radius: 50%;
-      animation: pulse 2s infinite;
-    }
-  
-    @keyframes pulse {
-      0% { transform: scale(0.95); opacity: 0.5; }
-      50% { transform: scale(1.05); opacity: 1; }
-      100% { transform: scale(0.95); opacity: 0.5; }
-    }
-  
-    .security-info {
-      margin-top: auto;
-      display: flex;
-      flex-direction: column;
-      gap: 1rem;
-    }
-  
-    .security-item {
-      display: flex;
-      align-items: center;
-      gap: 0.8rem;
-      font-size: 0.9rem;
-      color: rgba(0, 0, 0, 0.8);
-    }
-  
-    .icon {
-      font-size: 1.2rem;
+    .dark .preview-title {
+      border-bottom: 1px dashed rgba(255, 255, 255, 0.1);
     }
   
     .empty-state {
@@ -199,14 +230,99 @@
       color: rgba(0, 0, 0, 0.6);
     }
   
-    .upload-icon {
-      font-size: 3rem;
-      animation: float 3s ease-in-out infinite;
+    .dark .empty-state {
+      color: rgba(255, 255, 255, 0.6);
     }
   
-    @keyframes float {
-      0% { transform: translateY(0); }
-      50% { transform: translateY(-10px); }
-      100% { transform: translateY(0); }
+    .preview-section {
+      margin-bottom: 2rem;
+      border: 1px solid rgba(0, 0, 0, 0.1);
+      border-radius: 8px;
+      padding: 1rem;
+      background-color: rgba(255, 255, 255, 0.7);
+    }
+  
+    .dark .preview-section {
+      background-color: rgba(0, 0, 0, 0.3);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+  
+    .preview-section.disabled {
+      opacity: 0.6;
+    }
+  
+    .preview-section h3 {
+      margin-top: 0;
+      margin-bottom: 1rem;
+      font-size: 1rem;
+    }
+  
+    .preview-detail {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 0.5rem;
+    }
+  
+    .detail-label {
+      font-weight: 500;
+      color: rgba(0, 0, 0, 0.7);
+    }
+  
+    .dark .detail-label {
+      color: rgba(255, 255, 255, 0.7);
+    }
+  
+    .detail-value {
+      font-family: "Monaco", monospace;
+    }
+  
+    .detail-value.hash {
+      color: #1a73e8;
+    }
+  
+    .dark .detail-value.hash {
+      color: #64b5f6;
+    }
+  
+    .detail-value.success {
+      color: #0caf60;
+    }
+  
+    .detail-actions {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 1rem;
+    }
+  
+    .action-button {
+      background-color: rgba(0, 0, 0, 0.05);
+      border: none;
+      padding: 0.5rem 0.75rem;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.8rem;
+      transition: all 0.2s ease;
+      text-decoration: none;
+      color: inherit;
+    }
+  
+    .action-button:hover {
+      background-color: rgba(0, 0, 0, 0.1);
+      transform: translateY(-1px);
+    }
+  
+    .dark .action-button {
+      background-color: rgba(255, 255, 255, 0.1);
+    }
+  
+    .dark .action-button:hover {
+      background-color: rgba(255, 255, 255, 0.15);
+    }
+  
+    .info-text {
+      font-size: 0.8rem;
+      font-style: italic;
+      margin-top: 1rem;
+      opacity: 0.7;
     }
   </style>

@@ -1,100 +1,170 @@
-import { create } from 'ipfs-http-client';
+/**
+ * IPFS Service
+ * This service provides core functions for interacting with the IPFS network.
+ */
 
-// Connect to local IPFS node
-// ipfs-http-client v60 için doğru kullanım
-const ipfs = create({
-  host: 'localhost',
-  port: 5001,
-  protocol: 'http',
-  apiPath: '/api/v0'
-});
+import axios from 'axios';
 
-// Local IPFS Gateway URL
-const LOCAL_IPFS_GATEWAY = 'http://localhost:8080/ipfs/';
+// IPFS API endpoint - connects to a local node
+// In a real application, this value should be taken from .env file or user settings
+const IPFS_API_ENDPOINT = 'http://localhost:5001/api/v0';
 
-export async function uploadToIPFS(file) {
-  try {
-    const buffer = await file.arrayBuffer();
-    const result = await ipfs.add(buffer);
-    
-    // Get local gateway URL
-    const localUrl = `${LOCAL_IPFS_GATEWAY}${result.path}`;
-    
-    return {
-      cid: result.path,
-      url: localUrl
-    };
-  } catch (error) {
-    console.error('IPFS upload error:', error);
-    throw new Error('Failed to upload file to IPFS');
-  }
-}
+// Alternative services like Infura or Dedicated Gateway can also be used
+// const INFURA_PROJECT_ID = 'your-infura-project-id';
+// const INFURA_API_SECRET = 'your-infura-api-secret';
+// const INFURA_ENDPOINT = 'https://ipfs.infura.io:5001/api/v0';
 
-export async function getFromIPFS(cid) {
-  try {
-    const stream = ipfs.cat(cid);
-    const chunks = [];
-    for await (const chunk of stream) {
-      chunks.push(chunk);
-    }
-    return new Blob(chunks);
-  } catch (error) {
-    console.error('IPFS download error:', error);
-    throw new Error('Failed to download file from IPFS');
-  }
-}
-
-export function getGatewayUrl(cid) {
-  return `${LOCAL_IPFS_GATEWAY}${cid}`;
-}
-
-// Verify IPFS node connection
+/**
+ * Check IPFS connection
+ * @returns {Promise<boolean>} Connection status
+ */
 export async function checkIPFSConnection() {
   try {
-    // IPFS API isteklerinin POST yöntemiyle yapılması gerekiyor
-    const response = await fetch('http://localhost:5001/api/v0/version', {
-      method: 'POST',
-      headers: {
-        'Accept': 'application/json'
-      }
-    });
+    // Try IPFS API connection
+    const response = await axios.post(`${IPFS_API_ENDPOINT}/id`);
     
-    if (!response.ok) {
-      throw new Error(`IPFS API responded with status: ${response.status}`);
+    if (response.status === 200 && response.data) {
+      console.log('IPFS node ID:', response.data.ID);
+      return true;
     }
     
-    const data = await response.json();
-    console.log('Connected to IPFS node version:', data.Version);
-    return true;
-  } catch (error) {
-    console.error('Failed to connect to IPFS node:', error);
-    if (error.message && error.message.includes('ECONNREFUSED')) {
-      console.error('IPFS daemon is not running. Please start it with: ipfs daemon');
-    }
     return false;
+  } catch (error) {
+    console.error('IPFS node connection error:', error);
+    throw new Error(`IPFS connection failed: ${error.message}`);
   }
 }
 
-// Yeni bir fonksiyon - IPFS bağlantısını test etmek için
-export async function testIPFSConnection() {
+/**
+ * Upload file to IPFS
+ * @param {File} file - File to upload
+ * @returns {Promise<{cid: string, url: string}>} CID and URL information
+ */
+export async function ipfsUpload(file) {
   try {
-    // IPFS API isteklerinin POST yöntemiyle yapılması gerekiyor
-    const response = await fetch('http://localhost:5001/api/v0/version', {
-      method: 'POST',
-      headers: {
-        'Accept': 'application/json'
-      }
-    });
-    
-    if (!response.ok) {
-      throw new Error(`IPFS API not responding, status: ${response.status}`);
+    if (!file) {
+      throw new Error('No file found to upload');
     }
     
-    const data = await response.json();
-    console.log('IPFS API Response:', data);
-    return true;
+    // Create FormData
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    // Send file to IPFS node
+    const response = await axios.post(
+      `${IPFS_API_ENDPOINT}/add?pin=true`,
+      formData,
+      {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      }
+    );
+    
+    if (!response.data || !response.data.Hash) {
+      throw new Error('Invalid IPFS response');
+    }
+    
+    const cid = response.data.Hash;
+    // IPFS Gateway URL
+    const url = `https://ipfs.io/ipfs/${cid}`;
+    
+    console.log('IPFS file upload successful:', { cid, url });
+    
+    return { cid, url };
   } catch (error) {
-    console.error('IPFS Connection Test Failed:', error);
-    return false;
+    console.error('IPFS upload error:', error);
+    throw new Error(`IPFS upload failed: ${error.message}`);
+  }
+}
+
+/**
+ * Download file from IPFS
+ * @param {string} cid - CID of the file to download
+ * @param {string} filename - Filename to save as
+ * @returns {Promise<void>} 
+ */
+export async function ipfsDownload(cid, filename) {
+  if (!cid) {
+    throw new Error('No valid CID specified');
+  }
+  
+  try {
+    // Get file from IPFS
+    const response = await axios.post(
+      `${IPFS_API_ENDPOINT}/cat?arg=${cid}`,
+      {},
+      { responseType: 'blob' }
+    );
+    
+    // Create blob and initiate download
+    const blob = new Blob([response.data]);
+    const url = window.URL.createObjectURL(blob);
+    
+    const a = document.createElement('a');
+    a.style.display = 'none';
+    a.href = url;
+    a.download = filename || cid;
+    document.body.appendChild(a);
+    a.click();
+    
+    // Clean up resources
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+    
+    console.log('IPFS file download successful:', cid);
+  } catch (error) {
+    console.error('IPFS download error:', error);
+    throw new Error(`IPFS download failed: ${error.message}`);
+  }
+}
+
+/**
+ * Get data from IPFS (for small files)
+ * @param {string} cid - Data CID
+ * @returns {Promise<string>} Data content
+ */
+export async function ipfsGet(cid) {
+  if (!cid) {
+    throw new Error('No valid CID specified');
+  }
+  
+  try {
+    // Get content from IPFS
+    const response = await axios.post(
+      `${IPFS_API_ENDPOINT}/cat?arg=${cid}`,
+      {},
+      { responseType: 'text' }
+    );
+    
+    return response.data;
+  } catch (error) {
+    console.error('IPFS data retrieval error:', error);
+    throw new Error(`IPFS data retrieval failed: ${error.message}`);
+  }
+}
+
+/**
+ * Get metadata of data in IPFS
+ * @param {string} cid - Data CID
+ * @returns {Promise<Object>} Metadata
+ */
+export async function ipfsGetMetadata(cid) {
+  if (!cid) {
+    throw new Error('No valid CID specified');
+  }
+  
+  try {
+    // Get stat information from IPFS
+    const response = await axios.post(`${IPFS_API_ENDPOINT}/object/stat?arg=${cid}`);
+    
+    if (!response.data) {
+      throw new Error('Invalid IPFS response');
+    }
+    
+    return response.data;
+  } catch (error) {
+    console.error('IPFS metadata retrieval error:', error);
+    throw new Error(`IPFS metadata retrieval failed: ${error.message}`);
   }
 }

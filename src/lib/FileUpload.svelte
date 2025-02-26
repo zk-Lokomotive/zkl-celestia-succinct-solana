@@ -6,6 +6,10 @@
   let isDragging = false;
   let uploadError = null;
 
+  /**
+   * Handle dragover event
+   * @param {DragEvent} e - The drag event
+   */
   function handleDragOver(e) {
     e.preventDefault();
     isDragging = true;
@@ -15,6 +19,10 @@
     isDragging = false;
   }
 
+  /**
+   * Handle drop event
+   * @param {DragEvent} e - The drop event
+   */
   async function handleDrop(e) {
     e.preventDefault();
     isDragging = false;
@@ -25,12 +33,16 @@
     }
   }
 
+  /**
+   * Handle file selection
+   * @param {File} file - The selected file
+   */
   async function handleFileSelect(file) {
     if (!file) return;
     
     try {
       uploadError = null;
-      await fileStore.uploadFile(file);
+      fileStore.selectFile(file);
       dispatch('fileSelected', { file });
     } catch (error) {
       uploadError = error.message;
@@ -38,9 +50,25 @@
     }
   }
 
+  /**
+   * Trigger file input click
+   */
   function triggerFileInput() {
-    const fileInput = document.querySelector('input[type="file"]');
-    if (fileInput) fileInput.click();
+    const fileInput = /** @type {HTMLInputElement|null} */ (document.querySelector('input[type="file"]'));
+    if (fileInput) {
+      fileInput.click();
+    }
+  }
+  
+  /**
+   * Handle keydown event for accessibility
+   * @param {KeyboardEvent} e - The keyboard event
+   */
+  function handleKeyDown(e) {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      triggerFileInput();
+    }
   }
 </script>
 
@@ -52,11 +80,19 @@
   on:dragleave={handleDragLeave}
   on:drop={handleDrop}
   on:click={triggerFileInput}
+  on:keydown={handleKeyDown}
+  role="button"
+  tabindex="0"
+  aria-label="Upload file by clicking or dragging and dropping"
 >
   <input
     type="file"
     style="display: none"
-    on:change={(e) => handleFileSelect(e.target.files[0])}
+    on:change={(e) => {
+      const target = /** @type {HTMLInputElement} */ (e.target);
+      const file = target.files ? target.files[0] : null;
+      handleFileSelect(file);
+    }}
   />
   
   <div class="upload-content">

@@ -1,19 +1,24 @@
-import { writable, get } from 'svelte/store';
+import { writable, derived, get } from 'svelte/store';
+import { nanoid } from 'nanoid';
 import { inboxStore } from './inboxStore.js';
 import { walletStore } from './wallet.js';
-import { uploadToIPFS, checkIPFSConnection } from '../services/ipfs.js';
+import { ipfsUpload, ipfsDownload } from '../services/ipfs.js';
 import { sendMemoTransaction } from '../services/solana.js';
+import { submitToCelestia, verifyCelestiaData } from '../services/celestia.js';
+import { createFileVerification, verifyProof } from '../services/zk.js';
 
 const initialState = {
   selectedFile: null,
+  transferStatus: 'idle',
   ipfsHash: null,
-  ipfsUrl: null,
-  transferStatus: null,
-  recipientAddress: '',
-  message: '',
-  error: null,
-  isUploading: false,
-  platformFee: null
+  celestiaHeight: null,
+  celestiaTxHash: null,
+  celestiaUrl: null,
+  zkProofData: null,
+  isUsingCelestia: false,
+  isUsingZKP: false,
+  transferHistory: [],
+  error: null
 };
 
 function createFileStore() {
@@ -21,106 +26,162 @@ function createFileStore() {
 
   return {
     subscribe,
-    reset: () => set(initialState),
-    setError: (error) => update(store => ({ ...store, error })),
     
-    uploadFile: async (file) => {
-      update(store => ({ 
-        ...store, 
-        isUploading: true, 
-        error: null 
-      }));
+    selectFile: (file) => update(state => ({
+      ...state,
+      selectedFile: file,
+      transferStatus: 'idle',
+      ipfsHash: null,
+      celestiaHeight: null,
+      celestiaTxHash: null,
+      celestiaUrl: null,
+      zkProofData: null
+    })),
+    
+    reset: () => update(state => ({
+      ...state,
+      selectedFile: null,
+      transferStatus: 'idle',
+      ipfsHash: null,
+      celestiaHeight: null,
+      celestiaTxHash: null,
+      celestiaUrl: null,
+      zkProofData: null
+    })),
+    
+    toggleCelestia: (useIt) => update(state => ({
+      ...state,
+      isUsingCelestia: useIt
+    })),
+    
+    toggleZKP: (useIt) => update(state => ({
+      ...state,
+      isUsingZKP: useIt
+    })),
+    
+    transferFile: async (recipient, message = '') => {
+      const state = get({ subscribe });
+      const { selectedFile } = state;
+      
+      if (!selectedFile) {
+        return update(s => ({ ...s, error: 'No file selected' }));
+      }
+      
+      update(s => ({ ...s, transferStatus: 'uploading', error: null }));
       
       try {
-        // Verify IPFS connection first
-        const connected = await checkIPFSConnection();
-        if (!connected) {
-          throw new Error('IPFS node not available. Please ensure your local IPFS daemon is running.');
-        }
-
-        // Upload to local IPFS node
-        const { cid, url } = await uploadToIPFS(file);
+        console.log('Uploading file to IPFS...');
+        const ipfsResult = await ipfsUpload(selectedFile);
+        const cid = ipfsResult.cid;
+        console.log('IPFS CID:', cid);
         
-        update(store => ({
-          ...store,
-          selectedFile: file,
+        let celestiaData = null;
+        let zkProofData = null;
+        
+        if (state.isUsingCelestia) {
+          console.log('Sending file to Celestia...');
+          try {
+            celestiaData = await submitToCelestia(cid.toString());
+            console.log('Celestia data submission successful:', celestiaData);
+          } catch (celestiaError) {
+            console.error('Celestia error:', celestiaError);
+            throw new Error(`Celestia submission failed: ${celestiaError.message}`);
+          }
+        }
+        
+        if (state.isUsingZKP) {
+          console.log('Creating ZK Proof...');
+          try {
+            const secret = `${selectedFile.name}-${selectedFile.size}-${nanoid()}`;
+            
+            const verificationResult = await createFileVerification(cid.toString(), secret);
+            
+            if (verificationResult.isValid) {
+              zkProofData = verificationResult.verificationData;
+              console.log('ZK Proof created successfully:', zkProofData);
+            } else {
+              throw new Error(`ZK Proof creation failed: ${verificationResult.error}`);
+            }
+          } catch (zkError) {
+            console.error('ZK Proof creation error:', zkError);
+            throw new Error(`ZK Proof creation failed: ${zkError.message}`);
+          }
+        }
+        
+        const transferId = nanoid();
+        const currentTime = new Date().toISOString();
+        const sender = get(walletStore).publicKey || 'unknown';
+        
+        const transferRecord = {
+          id: transferId,
+          file: {
+            name: selectedFile.name,
+            size: selectedFile.size,
+            type: selectedFile.type
+          },
+          ipfs: { cid },
+          celestia: celestiaData,
+          zkProof: zkProofData ? {
+            timestamp: zkProofData.timestamp,
+            verified: zkProofData.isValid !== false
+          } : null,
+          recipient,
+          sender,
+          message,
+          timestamp: currentTime
+        };
+        
+        update(s => ({
+          ...s,
+          transferStatus: 'uploaded',
           ipfsHash: cid,
-          ipfsUrl: url,
-          isUploading: false
+          celestiaHeight: celestiaData?.height || null,
+          celestiaTxHash: celestiaData?.txhash || null,
+          celestiaUrl: celestiaData?.celestiaUrl || null,
+          zkProofData,
+          transferHistory: [transferRecord, ...s.transferHistory]
         }));
-
-        return { cid, url };
+        
+        return transferRecord;
       } catch (error) {
-        console.error('Upload error:', error);
-        const errorMessage = error.message || 'Failed to upload file';
-        update(store => ({
-          ...store,
-          error: errorMessage,
-          isUploading: false
+        console.error('Transfer error:', error);
+        update(s => ({ 
+          ...s, 
+          transferStatus: 'error', 
+          error: error.message || 'Unknown error occurred' 
         }));
-        throw new Error(errorMessage);
+        throw error;
       }
     },
     
-    transferFile: async (recipientAddress, message) => {
-      update(store => ({ 
-        ...store, 
-        transferStatus: 'pending', 
-        error: null 
-      }));
-
+    downloadFile: async (cid, filename) => {
       try {
-        const { ipfsHash, ipfsUrl, selectedFile } = get({ subscribe });
-        const wallet = get(walletStore);
-
-        if (!wallet?.connected || !wallet?.publicKey) {
-          throw new Error('Please connect your wallet first');
-        }
-
-        if (!ipfsHash || !ipfsUrl) {
-          throw new Error('No file uploaded');
-        }
-
-        // Send Solana transaction with IPFS URL and platform fee
-        const { signature, explorerUrl, platformFee } = await sendMemoTransaction(
-          wallet,
-          recipientAddress,
-          ipfsUrl,
-          selectedFile.size
-        );
-
-        // Add message to recipient's inbox
-        inboxStore.addMessage(recipientAddress, {
-          ipfsHash,
-          ipfsUrl,
-          message,
-          senderAddress: wallet.publicKey,
-          fileName: selectedFile.name,
-          fileSize: selectedFile.size,
-          transactionSignature: signature,
-          transactionUrl: explorerUrl,
-          platformFee,
-          timestamp: new Date().toISOString()
-        });
-
-        update(store => ({
-          ...store,
-          transferStatus: 'completed',
-          recipientAddress,
-          message,
-          platformFee
-        }));
-
+        await ipfsDownload(cid, filename);
         return true;
       } catch (error) {
-        console.error('Transfer error:', error);
-        const errorMessage = error.message || 'Failed to transfer file';
-        update(store => ({
-          ...store,
-          transferStatus: 'failed',
-          error: errorMessage
-        }));
-        throw new Error(errorMessage);
+        console.error('Download error:', error);
+        update(s => ({ ...s, error: error.message }));
+        throw error;
+      }
+    },
+    
+    verifyCelestiaData: async (height, cid) => {
+      try {
+        const result = await verifyCelestiaData(height, cid);
+        return result;
+      } catch (error) {
+        console.error('Celestia verification error:', error);
+        throw new Error(`Celestia verification failed: ${error.message}`);
+      }
+    },
+    
+    verifyZkProof: async (proof, publicSignals, expectedCid) => {
+      try {
+        const isValid = await verifyProof(proof, publicSignals, expectedCid);
+        return { isValid };
+      } catch (error) {
+        console.error('ZK verification error:', error);
+        throw new Error(`ZK verification failed: ${error.message}`);
       }
     }
   };

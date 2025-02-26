@@ -45,3 +45,82 @@ If you have state that's important to retain within a component, consider creati
 import { writable } from 'svelte/store'
 export default writable(0)
 ```
+
+# ZKL (Zero Knowledge Lambda) - Solana & Celestia & ZK File Transfer
+
+ZKL, dosyaları güvenli bir şekilde paylaşmak için IPFS, Solana, Celestia Data Availability (DA) katmanı ve Zero Knowledge Proof (ZKP) teknolojilerini birleştiren güçlü bir merkezi olmayan dosya transfer uygulamasıdır.
+
+## Özellikler
+
+- **IPFS Entegrasyonu**: Dosyaları merkezi olmayan depolama üzerinde barındırma
+- **Solana Blockchain**: İşlemleri, dosya referanslarını ve doğrulamaları kaydetme
+- **Celestia DA Katmanı**: Veri erişilebilirliğini ve kalıcılığını sağlama
+- **Zero Knowledge Proofs**: Dosya içeriğini ifşa etmeden doğrulama
+
+## Teknoloji Yığını
+
+- **Frontend**: Svelte, Vite
+- **Blockchain**: Solana (DevNet)
+- **DA Katmanı**: Celestia
+- **Depolama**: IPFS (InterPlanetary File System)
+- **ZK Proofs**: snarkjs
+
+## Kurulum
+
+### Gereksinimler
+
+- Node.js (v16+)
+- IPFS Daemon
+- Solana CLI (DevNet için)
+- Celestia Light Client (Opsiyonel)
+
+### Adımlar
+
+1. Repoyu klonlayın:
+   ```
+   git clone https://github.com/kullaniciadi/zkl-mvp-solana-devnet.git
+   cd zkl-mvp-solana-devnet
+   ```
+
+2. Bağımlılıkları yükleyin:
+   ```
+   npm install
+   ```
+
+3. IPFS daemon'ı başlatın:
+   ```
+   ipfs daemon
+   ```
+
+4. Celestia Light Client'ı başlatın (Opsiyonel):
+   ```
+   celestia light start
+   ```
+
+5. Uygulamayı başlatın:
+   ```
+   npm run dev
+   ```
+
+## Nasıl Çalışır?
+
+1. **Dosya Yükleme**: Kullanıcı bir dosya yükler, dosya IPFS'e yüklenir ve bir CID (Content Identifier) döndürülür.
+2. **Celestia DA**: IPFS CID'si, kalıcılık ve güvenilir erişilebilirlik için Celestia DA katmanına kaydedilir.
+3. **Zero Knowledge Proof**: Dosyanın bütünlüğünü ve varlığını gizlilik koruyarak doğrulayan bir ZK Proof oluşturulur.
+4. **Solana Transferi**: Dosyanın referansı ve ilgili metadata, alıcıya Solana blockchain üzerinden transfer edilir.
+5. **Doğrulama**: Alıcı, ZK Proof'u kullanarak dosyanın bütünlüğünü doğrulayabilir ve Celestia veya IPFS üzerinden dosyaya erişebilir.
+
+## Güvenlik Özellikleri
+
+- **Merkezi Olmayan Depolama**: IPFS ile güvenli ve merkezi olmayan dosya depolama.
+- **Blokzincir Doğrulama**: Solana üzerinde dosya transferlerinin doğrulanabilir kaydı.
+- **Veri Kalıcılığı**: Celestia DA katmanı sayesinde garantili veri erişilebilirliği.
+- **Gizlilik Koruyan Doğrulama**: Zero Knowledge Proofs ile dosya içeriğini açıklamadan bütünlük doğrulaması.
+
+## Katkıda Bulunma
+
+Katkılarınızı bekliyoruz! Lütfen bir Pull Request göndermeden önce bir Issue açın ve değişikliklerinizi tartışın.
+
+## Lisans
+
+Bu proje MIT lisansı altında lisanslanmıştır - daha fazla bilgi için [LICENSE](LICENSE) dosyasına bakın.

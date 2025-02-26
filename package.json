@@ -14,12 +14,14 @@
     "vite": "^5.4.2"
   },
   "dependencies": {
+    "@solana/spl-memo": "^0.2.3",
     "@solana/web3.js": "^1.91.1",
     "@solflare-wallet/sdk": "^1.4.2",
-    "web3.storage": "^4.5.5",
+    "axios": "^1.8.1",
     "buffer": "^6.0.3",
     "ipfs-http-client": "^60.0.1",
     "multiformats": "^9.9.0",
-    "@solana/spl-memo": "^0.2.3"
+    "snarkjs": "^0.7.5",
+    "web3.storage": "^4.5.5"
   }
 }
