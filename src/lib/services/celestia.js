@@ -9,7 +9,7 @@ import axios from 'axios';
 // Celestia light client API endpoint
 // These details are used to connect to the actual Celestia network
 const CELESTIA_API_ENDPOINT = 'http://localhost:26659';
-const CELESTIA_AUTH_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJBbGxvdyI6WyJwdWJsaWMiLCJyZWFkIiwid3JpdGUiLCJhZG1pbiJdfQ.ayarlRig-VW15nL05_mmj5rHUmlouFF25xevip2yrr0';
+const CELESTIA_AUTH_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJBbGxvdyI6WyJwdWJsaWMiLCJyZWFkIiwid3JpdGUiLCJhZG1pbiJdLCJOb25jZSI6IlFJdno4WFc5WHdQQ3BNRkcxRG9QMTNVTk05NlNOQnFPeUtkcEdRaVFXaU09IiwiRXhwaXJlc0F0IjoiMDAwMS0wMS0wMVQwMDowMDowMFoifQ.Sbk2uLWPP53IY2qDIhTDnY0Z5ArkIrrU8sO1AM_x1tQ';
 // Namespace prefix - a fixed namespace prefix for the application
 // makes it easier to find the data
 const DEFAULT_NAMESPACE = 'zkl-ipfs';
