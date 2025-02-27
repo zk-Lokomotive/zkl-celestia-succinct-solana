@@ -3,6 +3,9 @@ const express = require('express');
 const cors = require('cors');
 const axios = require('axios');
 const bodyParser = require('body-parser');
+const { exec } = require('child_process');
+const util = require('util');
+const execPromise = util.promisify(exec);
 
 const app = express();
 const port = process.env.PORT || 3080;
@@ -34,18 +37,21 @@ app.get('/health', (req, res) => {
 // API node durumu kontrolü
 app.get('/api/node-status', async (req, res) => {
   try {
-    // Celestia Node'a temel bir HTTP GET isteği gönder
-    const response = await axios.get(`${CELESTIA_NODE_URL}`, {
-      timeout: 2000,
-      headers: {
-        'Authorization': `Bearer ${CELESTIA_AUTH_TOKEN}`
-      }
-    });
+    // CLI ile Celestia node bilgilerini getir
+    const { stdout, stderr } = await execPromise(`celestia node info --url ${CELESTIA_NODE_URL} --token "${CELESTIA_AUTH_TOKEN}"`);
     
-    console.log('Celestia node yanıt verdi:', response.status);
+    if (stderr) {
+      throw new Error(`CLI hatası: ${stderr}`);
+    }
+    
+    console.log('Celestia node durumu (CLI):', stdout);
+    const nodeInfo = JSON.parse(stdout);
+    
     res.json({ 
       status: 'connected',
-      timestamp: new Date().toISOString()
+      nodeInfo: nodeInfo,
+      timestamp: new Date().toISOString(),
+      method: 'cli'
     });
   } catch (error) {
     console.error('Celestia node bağlantı hatası:', error.message);
@@ -56,6 +62,54 @@ app.get('/api/node-status', async (req, res) => {
     });
   }
 });
+
+// CLI ile blob submit fonksiyonu
+async function submitBlobWithCLI(namespace, data, gasPrice = 0.002) {
+  try {
+    console.log(`CLI ile blob gönderiliyor: namespace=${namespace}, data=${data.substring(0, 30)}... (${data.length} karakter)`);
+    
+    // CLI komutu oluştur - çift tırnak içinde veriyi gönder
+    const command = `celestia blob submit ${namespace} "${data}" --gas.price ${gasPrice} --url ${CELESTIA_NODE_URL} --token "${CELESTIA_AUTH_TOKEN}"`;
+    console.log('Çalıştırılan CLI komutu:', command);
+    
+    const { stdout, stderr } = await execPromise(command);
+    
+    if (stderr) {
+      console.error('CLI stderr:', stderr);
+    }
+    
+    console.log('CLI stdout:', stdout);
+    return JSON.parse(stdout);
+  } catch (error) {
+    console.error('CLI ile blob submit hatası:', error.message);
+    console.error('CLI komut çıktısı:', error.stdout, error.stderr);
+    throw error;
+  }
+}
+
+// CLI ile blob get-all fonksiyonu
+async function getBlobWithCLI(height, namespace) {
+  try {
+    console.log(`CLI ile blob alınıyor: height=${height}, namespace=${namespace}`);
+    
+    // CLI komutu oluştur
+    const command = `celestia blob get-all ${height} ${namespace} --url ${CELESTIA_NODE_URL} --token "${CELESTIA_AUTH_TOKEN}"`;
+    console.log('Çalıştırılan CLI komutu:', command);
+    
+    const { stdout, stderr } = await execPromise(command);
+    
+    if (stderr) {
+      console.error('CLI stderr:', stderr);
+    }
+    
+    console.log('CLI stdout:', stdout);
+    return JSON.parse(stdout);
+  } catch (error) {
+    console.error('CLI ile blob get-all hatası:', error.message);
+    console.error('CLI komut çıktısı:', error.stdout, error.stderr);
+    throw error;
+  }
+}
 
 // Celestia RPC API proxy endpoint
 app.post('/api/celestia', async (req, res) => {
@@ -70,65 +124,95 @@ app.post('/api/celestia', async (req, res) => {
       });
     }
     
-    // blob.Submit metodu için özel işlem
+    // blob.Submit metodu için özel işlem - CLI kullan
     if (req.body.method === 'blob.Submit') {
-      // Blob verilerini log'la - detaylı olarak
       try {
         const blobs = req.body.params[0]; // İlk parametre blob dizisi
-        console.log('Blob Detayları:');
-        blobs.forEach((blob, index) => {
-          console.log(`Blob ${index}:`, {
+        const gasPrice = req.body.params[1] || 0.002; // İkinci parametre gas price
+        
+        console.log('Blob Detayları (CLI kullanılacak):');
+        let allResults = [];
+        
+        // Her bir blob için CLI komutu çalıştır
+        for (let i = 0; i < blobs.length; i++) {
+          const blob = blobs[i];
+          console.log(`Blob ${i}:`, {
             namespace: blob.namespace,
             data: blob.data ? `${blob.data.substring(0, 30)}... (${blob.data.length} karakter)` : 'VERİ YOK!',
             share_version: blob.share_version
           });
           
-          // Namespace'in hex olup olmadığını kontrol et
-          if (blob.namespace && !blob.namespace.startsWith('0x')) {
-            console.warn(`UYARI: Namespace (${blob.namespace}) '0x' ile başlamıyor!`);
-          }
-          
-          // Data formatını kontrol et (ek bilgi için)
-          if (blob.data) {
-            try {
-              const isBase64 = /^[A-Za-z0-9+/=]+$/.test(blob.data);
-              console.log(`  Base64 formatında mı: ${isBase64 ? 'Evet' : 'Hayır'}`);
-            } catch (e) {
-              console.log('  Format kontrolü hatası:', e.message);
-            }
-          }
+          const result = await submitBlobWithCLI(blob.namespace, blob.data, gasPrice);
+          allResults.push(result);
+        }
+        
+        // CLI sonucunu JSON-RPC formatında dönüştür
+        const cliResult = allResults[0].result;
+        console.log('CLI işlemi başarılı:', cliResult);
+        
+        // JSON-RPC uyumlu yanıt oluştur
+        const jsonRpcResponse = {
+          jsonrpc: "2.0",
+          id: req.body.id,
+          result: cliResult.height
+        };
+        
+        res.json(jsonRpcResponse);
+        return;
+      } catch (cliError) {
+        console.error('CLI ile blob submit hatası:', cliError);
+        return res.status(500).json({ 
+          error: `CLI ile blob submit hatası: ${cliError.message}`,
+          code: 'CLI_ERROR',
+          timestamp: new Date().toISOString()
         });
-      } catch (e) {
-        console.error('Blob parse hatası:', e);
       }
     }
     
-    // blob.GetAll metodu için özel işlem 
+    // blob.GetAll metodu için özel işlem - CLI kullan
     if (req.body.method === 'blob.GetAll') {
       try {
-        // GetAll parametrelerini kontrol et
         const height = req.body.params[0];
         const namespaces = req.body.params[1];
         
-        console.log('GetAll Detayları:');
-        console.log(`  Yükseklik: ${height}`);
-        console.log(`  Namespaces: ${JSON.stringify(namespaces)}`);
-        
-        // Namespace'in bir dizi olup olmadığını kontrol et
         if (!Array.isArray(namespaces)) {
-          console.warn('UYARI: Namespace parametresi bir dizi değil! Dizi olmalı.');
-          // Düzeltme yap - namespace'i diziye çevir
-          req.body.params[1] = Array.isArray(namespaces) ? namespaces : [namespaces];
-          console.log(`  Namespaces düzeltildi: ${JSON.stringify(req.body.params[1])}`);
+          return res.status(400).json({
+            error: 'Namespace dizisi olmalı',
+            timestamp: new Date().toISOString()
+          });
         }
-      } catch (e) {
-        console.error('GetAll parametreleri parse hatası:', e);
+        
+        const namespace = namespaces[0]; // İlk namespace'i al
+        
+        console.log('GetAll Detayları (CLI kullanılacak):');
+        console.log(`  Yükseklik: ${height}`);
+        console.log(`  Namespace: ${namespace}`);
+        
+        const result = await getBlobWithCLI(height, namespace);
+        console.log('CLI ile blob alma başarılı:', result);
+        
+        // JSON-RPC uyumlu yanıt oluştur
+        const jsonRpcResponse = {
+          jsonrpc: "2.0",
+          id: req.body.id,
+          result: result.result
+        };
+        
+        res.json(jsonRpcResponse);
+        return;
+      } catch (cliError) {
+        console.error('CLI ile blob get-all hatası:', cliError);
+        return res.status(500).json({ 
+          error: `CLI ile blob get-all hatası: ${cliError.message}`,
+          code: 'CLI_ERROR',
+          timestamp: new Date().toISOString()
+        });
       }
     }
     
-    // İsteği doğrudan Celestia'ya ilet
+    // Diğer metodlar için normal JSON-RPC kullan
     try {
-      console.log('Celestia node\'una gönderiliyor:', JSON.stringify(req.body, null, 2));
+      console.log('Celestia node\'una JSON-RPC isteği gönderiliyor:', JSON.stringify(req.body, null, 2));
       
       const response = await axios.post(
         CELESTIA_NODE_URL,
@@ -150,6 +234,9 @@ app.post('/api/celestia', async (req, res) => {
         code: error.code,
         status: error.response?.status
       });
+      
+      // Hata detaylarını daha ayrıntılı log'la
+      console.error('Tam Hata:', error);
       
       if (error.response?.data) {
         console.error('Hata Detayları:', JSON.stringify(error.response.data, null, 2));
@@ -175,39 +262,30 @@ app.post('/api/celestia', async (req, res) => {
 // Celestia node durumu endpoint'i
 app.get('/api/celestia/status', async (req, res) => {
   try {
-    const response = await axios.post(
-      CELESTIA_NODE_URL,
-      {
-        jsonrpc: "2.0",
-        id: 1,
-        method: "node.Info",
-        params: []
-      },
-      {
-        headers: {
-          'Authorization': `Bearer ${CELESTIA_AUTH_TOKEN}`,
-          'Content-Type': 'application/json'
-        },
-        timeout: 5000
-      }
-    );
+    // CLI ile node bilgilerini al
+    const { stdout } = await execPromise(`celestia node info --url ${CELESTIA_NODE_URL} --token "${CELESTIA_AUTH_TOKEN}"`);
+    const nodeInfo = JSON.parse(stdout);
+    
+    // Balans bilgisini al
+    const { stdout: balanceStdout } = await execPromise(`celestia state balance --url ${CELESTIA_NODE_URL} --token "${CELESTIA_AUTH_TOKEN}"`);
+    const balanceInfo = JSON.parse(balanceStdout);
     
     res.json({
       status: 'connected',
-      nodeInfo: response.data,
-      timestamp: new Date().toISOString()
+      nodeInfo: nodeInfo,
+      balance: balanceInfo.result?.amount,
+      denom: balanceInfo.result?.denom,
+      timestamp: new Date().toISOString(),
+      method: 'cli'
     });
   } catch (error) {
     console.error('Node durumu alınamadı:', {
-      message: error.message,
-      code: error.code,
-      status: error.response?.status
+      message: error.message
     });
     
     res.status(500).json({ 
       status: 'disconnected',
       error: error.message,
-      code: error.code,
       timestamp: new Date().toISOString()
     });
   }
@@ -216,24 +294,11 @@ app.get('/api/celestia/status', async (req, res) => {
 // Celestia bakiye endpoint'i
 app.get('/api/celestia/balance', async (req, res) => {
   try {
-    const response = await axios.post(
-      CELESTIA_NODE_URL,
-      {
-        jsonrpc: "2.0",
-        id: 1,
-        method: "state.Balance",
-        params: []
-      },
-      {
-        headers: {
-          'Authorization': `Bearer ${CELESTIA_AUTH_TOKEN}`,
-          'Content-Type': 'application/json'
-        },
-        timeout: 5000
-      }
-    );
+    // CLI ile bakiye bilgilerini al
+    const { stdout } = await execPromise(`celestia state balance --url ${CELESTIA_NODE_URL} --token "${CELESTIA_AUTH_TOKEN}"`);
+    const balanceInfo = JSON.parse(stdout);
     
-    res.json(response.data);
+    res.json(balanceInfo);
   } catch (error) {
     console.error('Bakiye alınamadı:', error.message);
     res.status(500).json({ 
@@ -262,6 +327,53 @@ app.get('/api/celestia/cli-help', (req, res) => {
   });
 });
 
+// Doğrudan CLI komut çalıştırma endpoint'i (geliştirme/test için)
+app.post('/api/celestia/run-cli', async (req, res) => {
+  try {
+    const { command } = req.body;
+    
+    if (!command) {
+      return res.status(400).json({
+        error: 'Komut parametresi gerekli',
+        timestamp: new Date().toISOString()
+      });
+    }
+    
+    console.log(`CLI komutu çalıştırılıyor: ${command}`);
+    
+    const { stdout, stderr } = await execPromise(command);
+    
+    if (stderr) {
+      console.warn('CLI stderr:', stderr);
+    }
+    
+    console.log('CLI stdout:', stdout);
+    
+    try {
+      // JSON olarak parse etmeyi dene
+      const jsonResult = JSON.parse(stdout);
+      res.json({
+        result: jsonResult,
+        timestamp: new Date().toISOString()
+      });
+    } catch (e) {
+      // JSON olarak parse edilemiyorsa düz metin olarak döndür
+      res.json({
+        result: stdout,
+        stderr: stderr || null,
+        timestamp: new Date().toISOString()
+      });
+    }
+  } catch (error) {
+    console.error('CLI çalıştırma hatası:', error);
+    res.status(500).json({
+      error: `CLI komutu çalıştırılamadı: ${error.message}`,
+      stderr: error.stderr || null,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
 // Genel hata yakalayıcı
 app.use((err, req, res, next) => {
   console.error('Express hatası:', err);
@@ -283,6 +395,6 @@ app.use((req, res) => {
 
 // Sunucuyu başlat
 app.listen(port, () => {
-  console.log(`Celestia API Proxy sunucusu şurada çalışıyor: http://localhost:${port}`);
-  console.log(`Celestia node'una bağlanıyor: ${CELESTIA_NODE_URL}`);
+  console.log(`Celestia API Proxy sunucusu (CLI destekli) şurada çalışıyor: http://localhost:${port}`);
+  console.log(`Celestia node port: ${CELESTIA_NODE_URL}`);
 }); 
