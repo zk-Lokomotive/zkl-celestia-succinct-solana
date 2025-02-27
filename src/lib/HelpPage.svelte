@@ -9,7 +9,7 @@
 <div class="help-overlay" class:dark={isDark}>
   <div class="help-container">
     <div class="help-header">
-      <h1>Celestia ve ZK Entegrasyonu</h1>
+      <h1>Celestia and ZK Integration</h1>
       <button 
         class="close-button" 
         on:click={() => dispatch('close')}
@@ -22,72 +22,72 @@
     
     <div class="help-content">
       <div class="section">
-        <h2>Celestia Data Availability (DA) Nedir?</h2>
+        <h2>What is Celestia Data Availability (DA)?</h2>
         <p>
-          Celestia, dosya transferlerinizin bir kaydını blokzincirde saklamanıza olanak tanıyan bir Data Availability (DA) katmanıdır. 
-          Bu, dosyalarınızın IPFS referanslarının kalıcı ve değiştirilemez bir şekilde saklanmasını sağlar.
+          Celestia is a Data Availability (DA) layer that allows you to store a record of your file transfers on the blockchain.
+          This ensures that your IPFS references are stored in a permanent and immutable way.
         </p>
         <div class="feature-box">
-          <h3>Celestia'nın Avantajları:</h3>
+          <h3>Advantages of Celestia:</h3>
           <ul>
-            <li>Transfer kanıtları için değiştirilemez kayıt</li>
-            <li>Herkes tarafından doğrulanabilirlik</li>
-            <li>Gerçek merkeziyetsiz veri kalıcılığı</li>
-            <li>Explorer üzerinden görüntülenebilir işlemler</li>
+            <li>Immutable record for transfer proofs</li>
+            <li>Verifiability by everyone</li>
+            <li>True decentralized data persistence</li>
+            <li>Transactions viewable through Explorer</li>
           </ul>
         </div>
       </div>
       
       <div class="section">
-        <h2>Zero Knowledge Proofs (ZKP) Nedir?</h2>
+        <h2>What are Zero Knowledge Proofs (ZKP)?</h2>
         <p>
-          Zero Knowledge Proofs, dosya içeriğini ifşa etmeden dosyanızın bütünlüğünü kanıtlamanıza olanak tanıyan kriptografik bir mekanizmadır.
-          Gizlilik korumalı bir şekilde dosya transferlerinin doğrulanmasını sağlar.
+          Zero Knowledge Proofs are a cryptographic mechanism that allows you to prove the integrity of your file without revealing its content.
+          It enables privacy-preserving verification of file transfers.
         </p>
         <div class="feature-box">
-          <h3>ZK Kanıtlarının Avantajları:</h3>
+          <h3>Advantages of ZK Proofs:</h3>
           <ul>
-            <li>Gizlilik korumalı doğrulama</li>
-            <li>Minimum veri gereksinimi</li>
-            <li>Matematiksel olarak kanıtlanabilir güvenlik</li>
-            <li>Hızlı doğrulama süresi</li>
+            <li>Privacy-preserving verification</li>
+            <li>Minimal data requirements</li>
+            <li>Mathematically provable security</li>
+            <li>Fast verification time</li>
           </ul>
         </div>
       </div>
       
       <div class="section">
-        <h2>Nasıl Kullanılır?</h2>
+        <h2>How to Use</h2>
         <ol>
           <li>
-            <strong>Celestia DA Kullanımı:</strong> 
-            Dosyanızı yüklerken "Celestia Data Availability" seçeneğini etkinleştirin. 
-            Bu, IPFS hash'inizin Celestia blokzincirinde saklanmasını sağlar.
+            <strong>Using Celestia DA:</strong> 
+            Enable the "Celestia Data Availability" option when uploading your file.
+            This ensures your IPFS hash is stored on the Celestia blockchain.
           </li>
           <li>
-            <strong>Zero Knowledge Doğrulaması:</strong> 
-            Dosyanızı yüklerken "Zero Knowledge Verification" seçeneğini etkinleştirin. 
-            Bu, dosyanızın bütünlüğünü koruyan bir ZK kanıtı oluşturur.
+            <strong>Zero Knowledge Verification:</strong> 
+            Enable the "Zero Knowledge Verification" option when uploading your file.
+            This creates a ZK proof that preserves the integrity of your file.
           </li>
           <li>
-            <strong>Durumu Görüntüle:</strong>
-            Arayüzde Celestia ve ZK devre durumlarını görebilir, 
-            Celestia işlemlerini görüntüleyebilirsiniz.
+            <strong>View Status:</strong>
+            You can see the Celestia and ZK circuit statuses in the interface,
+            and view Celestia transactions.
           </li>
         </ol>
       </div>
       
       <div class="section">
-        <h2>Daha Fazla Bilgi</h2>
+        <h2>More Information</h2>
         <p>
-          Detaylı teknik bilgiler, kurulum adımları ve gelişmiş kullanım örnekleri 
-          için lütfen <a href="/docs/integration-details.md" target="_blank">entegrasyon belgesini</a> inceleyin.
+          For detailed technical information, setup steps, and advanced usage examples,
+          please review the <a href="/docs/integration-details.md" target="_blank">integration documentation</a>.
         </p>
         <div class="buttons">
           <a href="https://celestia.org" target="_blank" class="external-link">
-            Celestia Resmi Sitesi
+            Celestia Official Website
           </a>
           <a href="https://zkp.science" target="_blank" class="external-link">
-            ZK Kanıtları Hakkında
+            About ZK Proofs
           </a>
         </div>
       </div>

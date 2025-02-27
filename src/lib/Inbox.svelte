@@ -7,48 +7,48 @@
   import { ipfsDownload } from './services/ipfs.js';
   import { fileStore } from './stores/fileStore.js';
 
-  // Otomatik güncelleme için interval ID
+  // Interval ID for automatic updates
   let autoUpdateInterval = null;
   
-  // Kullanıcı mesajlarını al
+  // Get user messages
   $: userMessages = inboxStore.getMessagesForUser($walletStore.publicKey);
   $: isDark = $themeStore.isDark;
-  $: isFetching = false; // Veri çekiliyor mu?
-  $: lastFetched = null; // Son veri çekme zamanı
+  $: isFetching = false; // Is data being fetched?
+  $: lastFetched = null; // Last fetch time
   
-  // Component monte edildiğinde otomatik kontrolü başlat
+  // Start automatic check when component is mounted
   onMount(() => {
-    // Kullanıcının adresini al ve Inbox'ı doldur
+    // Get user's address and populate Inbox
     if ($walletStore.publicKey) {
-      console.log('Inbox otomatik güncellemesi başlıyor:', $walletStore.publicKey);
-      // İlk veri çekme işlemi
+      console.log('Starting Inbox auto-update:', $walletStore.publicKey);
+      // Initial data fetch
       inboxStore.fetchFromCelestia($walletStore.publicKey);
       
-      // Otomatik güncelleme için interval ayarla (her 2 dakikada bir)
+      // Set interval for automatic updates (every 2 minutes)
       autoUpdateInterval = inboxStore.startAutoFetch($walletStore.publicKey, 120000);
     }
   });
   
-  // Component kaldırıldığında interval'ı temizle
+  // Clear interval when component is destroyed
   onDestroy(() => {
     if (autoUpdateInterval) {
-      console.log('Inbox otomatik güncellemesi durduruluyor');
+      console.log('Stopping Inbox auto-update');
       clearInterval(autoUpdateInterval);
     }
   });
 
-  // Panoya kopyala
+  // Copy to clipboard
   function copyToClipboard(text) {
     navigator.clipboard.writeText(text);
-    alert('Panoya kopyalandı!');
+    alert('Copied to clipboard!');
   }
 
-  // Zamanı formatla
+  // Format time
   function formatDate(dateString) {
     return new Date(dateString).toLocaleString();
   }
 
-  // Dosya boyutunu formatla
+  // Format file size
   function formatFileSize(bytes) {
     if (!bytes) return '0 B';
     if (bytes < 1024) return bytes + ' B';
@@ -56,29 +56,29 @@
     return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
   }
 
-  // Mesajı sil
+  // Delete message
   function deleteMessage(messageId) {
-    if (confirm('Bu mesajı silmek istediğinizden emin misiniz?')) {
+    if (confirm('Are you sure you want to delete this message?')) {
       inboxStore.deleteMessage($walletStore.publicKey, messageId);
     }
   }
 
-  // Yeni sekme aç
+  // Open in new tab
   function openInNewTab(url) {
     window.open(url, '_blank');
   }
   
-  // Dosyayı indir
+  // Download file
   async function downloadFile(cid, fileName) {
     try {
       await fileStore.downloadFile(cid, fileName);
     } catch (error) {
-      console.error('Dosya indirme hatası:', error);
-      alert('Dosya indirilemedi: ' + error.message);
+      console.error('File download error:', error);
+      alert('Could not download file: ' + error.message);
     }
   }
   
-  // Verileri yenile
+  // Refresh data
   function refreshInbox() {
     if ($walletStore.publicKey) {
       inboxStore.fetchFromCelestia($walletStore.publicKey);
@@ -92,10 +92,10 @@
       <h2>zkλ/inbox</h2>
       <div class="inbox-actions">
         <div class="inbox-stats">
-          {$userMessages.length} dosya{$userMessages.length !== 1 ? '' : ''}
+          {$userMessages.length} file{$userMessages.length !== 1 ? 's' : ''}
         </div>
         <button class="refresh-button" on:click={refreshInbox} disabled={isFetching}>
-          ↻ Yenile
+          ↻ Refresh
         </button>
       </div>
     </div>
@@ -104,8 +104,8 @@
   {#if $userMessages.length === 0}
     <div class="empty-state" in:fade>
       <div class="empty-icon">📥</div>
-      <p class="empty-title">Gelen kutunuz boş</p>
-      <p class="empty-hint">Cüzdan adresinize gönderilen dosyalar burada görünecek</p>
+      <p class="empty-title">Your inbox is empty</p>
+      <p class="empty-hint">Files sent to your wallet address will appear here</p>
     </div>
   {:else}
     <div class="messages-list">
@@ -119,16 +119,16 @@
             <button 
               class="delete-button" 
               on:click={() => deleteMessage(message.id)}
-              title="Mesajı sil"
+              title="Delete message"
             >
               ✖️
             </button>
           </div>
           
           <div class="message-content">
-            <!-- Dosya Bilgileri -->
+            <!-- File Information -->
             <div class="file-info">
-              <div class="file-name">{message.fileName || 'Dosya'}</div>
+              <div class="file-name">{message.fileName || 'File'}</div>
               
               <div class="ipfs-link">
                 <code class="ipfs-hash" title="IPFS URL">
@@ -138,41 +138,41 @@
                   <button 
                     class="action-button view-button"
                     on:click={() => openInNewTab(message.ipfsUrl)}
-                    title="Dosyayı görüntüle"
+                    title="View file"
                   >
-                    Görüntüle
+                    View
                   </button>
                   <button 
                     class="action-button download-button"
                     on:click={() => downloadFile(message.ipfsCid, message.fileName)}
-                    title="Dosyayı indir"
+                    title="Download file"
                   >
-                    İndir
+                    Download
                   </button>
                   <button 
                     class="action-button copy-button"
                     on:click={() => copyToClipboard(message.ipfsUrl || message.ipfsCid)}
-                    title="IPFS linkini kopyala"
+                    title="Copy IPFS link"
                   >
-                    Kopyala
+                    Copy
                   </button>
                 </div>
               </div>
             </div>
             
-            <!-- Mesaj İçeriği (varsa) -->
+            <!-- Message Content (if any) -->
             {#if message.message}
               <div class="message-text">
                 <p>{message.message}</p>
               </div>
             {/if}
             
-            <!-- Celestia Bilgileri (varsa) -->
+            <!-- Celestia Information (if any) -->
             {#if message.celestiaHeight}
               <div class="celestia-info">
-                <h4>Celestia DA Bilgileri</h4>
+                <h4>Celestia DA Information</h4>
                 <div class="info-row">
-                  <span class="info-label">Blok Yüksekliği:</span>
+                  <span class="info-label">Block Height:</span>
                   <span class="info-value">{message.celestiaHeight}</span>
                 </div>
                 {#if message.celestiaNamespace}
@@ -189,34 +189,45 @@
                       rel="noopener noreferrer"
                       class="explorer-link"
                     >
-                      Celestia Explorer'da Görüntüle
+                      View in Celestia Explorer
+                    </a>
+                  </div>
+                {:else}
+                  <div class="celestia-link">
+                    <a 
+                      href={`https://explorer.consensus-celestia.app/block/${message.celestiaHeight}/namespace/${(message.celestiaNamespace || "0x7a6b6c2d69706673").replace('0x', '')}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      class="explorer-link"
+                    >
+                      View in Celestia Explorer
                     </a>
                   </div>
                 {/if}
               </div>
             {/if}
             
-            <!-- ZK Proof Bilgileri (varsa) -->
+            <!-- ZK Proof Information (if any) -->
             {#if message.zkProofAvailable}
               <div class="zk-info">
                 <h4>Zero Knowledge Proof</h4>
                 <div class="info-row">
-                  <span class="info-label">Durum:</span>
-                  <span class="info-value success">Doğrulandı ✓</span>
+                  <span class="info-label">Status:</span>
+                  <span class="info-value success">Verified ✓</span>
                 </div>
                 {#if message.zkProofTimestamp}
                   <div class="info-row">
-                    <span class="info-label">Oluşturulma:</span>
+                    <span class="info-label">Created:</span>
                     <span class="info-value">{formatDate(message.zkProofTimestamp)}</span>
                   </div>
                 {/if}
               </div>
             {/if}
             
-            <!-- Gönderen Bilgisi -->
+            <!-- Sender Information -->
             <div class="sender-info">
-              <span class="label">Gönderen:</span>
-              <code class="sender-address">{message.senderAddress || 'Bilinmeyen'}</code>
+              <span class="label">Sender:</span>
+              <code class="sender-address">{message.senderAddress || 'Unknown'}</code>
             </div>
           </div>
         </div>

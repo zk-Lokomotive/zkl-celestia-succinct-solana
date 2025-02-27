@@ -368,14 +368,16 @@ export async function submitToCelestia(ipfsHash, namespace = DEFAULT_NAMESPACE) 
     
     console.log(`Data submitted to Celestia at height: ${height}`);
     
+    // Gerçek txhash'i response'dan al
+    const txhash = response.data.result.txhash || `celestia-pfb-${height}-${Date.now()}`;
+    
     const txResult = {
       height,
-      txhash: `celestia-pfb-${Date.now()}`, // Gerçek txhash yerine placeholder kullanıyoruz
-      celestiaUrl: `https://celenium.io/${height}/${namespaceHex}`,
+      txhash, // Gerçek transaction hash'i kullan
+      celestiaUrl: `https://explorer.consensus-celestia.app/tx/${txhash}`,
       namespace: namespaceHex,
       ipfsHash
     };
-    
     // Save transaction to history
     saveTransactionToHistory(txResult.txhash, height, namespace, ipfsHash);
     
