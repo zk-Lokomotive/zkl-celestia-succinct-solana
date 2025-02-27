@@ -6,17 +6,37 @@
 
 import axios from 'axios';
 
-// Yerel API proxy bağlantısı (CORS hatalarını önler)
+// API proxy bağlantısı - Tarayıcıdaki CORS sorunlarını çözer
 const CELESTIA_API_ENDPOINT = 'http://localhost:3080/api/celestia';
+
 const CELESTIA_AUTH_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJBbGxvdyI6WyJwdWJsaWMiLCJyZWFkIiwid3JpdGUiLCJhZG1pbiJdLCJOb25jZSI6IlFJdno4WFc5WHdQQ3BNRkcxRG9QMTNVTk05NlNOQnFPeUtkcEdRaVFXaU09IiwiRXhwaXJlc0F0IjoiMDAwMS0wMS0wMVQwMDowMDowMFoifQ.Sbk2uLWPP53IY2qDIhTDnY0Z5ArkIrrU8sO1AM_x1tQ';
 // Namespace prefix - a fixed namespace prefix for the application
 // makes it easier to find the data
 const DEFAULT_NAMESPACE = 'zkl-ipfs';
 
-// Axios CORS yapılandırması
-axios.defaults.headers.common['Access-Control-Allow-Origin'] = '*';
-axios.defaults.headers.common['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS, PUT, PATCH, DELETE';
-axios.defaults.headers.common['Access-Control-Allow-Headers'] = 'Origin, X-Requested-With, Content-Type, Accept, Authorization';
+// Axios retry yapılandırması - bağlantı sorunlarında tekrar dener
+axios.interceptors.response.use(undefined, async (err) => {
+  // Retry sadece network hataları için
+  const { config } = err;
+  if (!config || !config.retry) {
+    return Promise.reject(err);
+  }
+
+  config.retry.count = config.retry.count || 0;
+  
+  if (config.retry.count >= config.retry.maxRetries) {
+    return Promise.reject(err);
+  }
+  
+  config.retry.count += 1;
+  
+  // Retry'dan önce biraz bekle
+  const delay = config.retry.delay || 1000;
+  await new Promise(resolve => setTimeout(resolve, delay));
+  
+  console.log(`Yeniden bağlanma denemesi ${config.retry.count}/${config.retry.maxRetries}`);
+  return axios(config);
+});
 
 /**
  * Check Celestia connection
@@ -193,19 +213,139 @@ export function fromHexString(hexData) {
 }
 
 /**
+ * Convert a string or object to base64 format
+ * @param {string|object} data - Data to convert
+ * @returns {string} Base64 format data
+ */
+export function toBase64String(data) {
+  try {
+    const jsonStr = typeof data === 'string' ? data : JSON.stringify(data);
+    console.log('Base64 dönüşümü öncesi veri:', jsonStr);
+    
+    // UTF-8 to Base64 conversion - Web-safe base64 kullan
+    const base64Str = btoa(unescape(encodeURIComponent(jsonStr)));
+    console.log('Base64 dönüşümü sonrası:', base64Str);
+    
+    // Base64 formatının geçerliliğini kontrol et
+    const isValidBase64 = /^[A-Za-z0-9+/=]+$/.test(base64Str);
+    console.log('Geçerli base64 formatı mı?', isValidBase64);
+    
+    return base64Str;
+  } catch (error) {
+    console.error('Base64 dönüşüm hatası:', error);
+    // Hata durumunda boş string yerine hata fırlatmak daha iyi
+    throw new Error(`Base64 dönüşümü başarısız: ${error.message}`);
+  }
+}
+
+/**
+ * Convert base64 format data to original format
+ * @param {string} base64Data - Base64 format data
+ * @returns {object|string} Original data
+ */
+export function fromBase64String(base64Data) {
+  try {
+    // Celestia formatında base64'den byte array'a dönüşüm
+    const base64Chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+    let bytes = [];
+    let p = 0;
+    
+    // Padding karakterlerini kaldır
+    let cleanBase64 = base64Data.replace(/=+$/, '');
+    
+    // 4 base64 karakterini 3 byte'a dönüştür
+    for (let i = 0; i < cleanBase64.length; i += 4) {
+      const chunk = [];
+      
+      // Her bir karakter grubu için base64 indekslerini al
+      for (let j = 0; j < 4; j++) {
+        if (i + j < cleanBase64.length) {
+          chunk.push(base64Chars.indexOf(cleanBase64[i + j]));
+        } else {
+          chunk.push(0); // Padding için 0 ekle
+        }
+      }
+      
+      // 4 base64 karakteri, 3 byte'a dönüştür
+      bytes.push((chunk[0] << 2) | (chunk[1] >> 4));
+      if (i + 2 < cleanBase64.length) {
+        bytes.push(((chunk[1] & 15) << 4) | (chunk[2] >> 2));
+      }
+      if (i + 3 < cleanBase64.length) {
+        bytes.push(((chunk[2] & 3) << 6) | chunk[3]);
+      }
+    }
+    
+    // Byte array'i UTF-8 string'e dönüştür
+    const decoder = new TextDecoder('utf-8');
+    const str = decoder.decode(new Uint8Array(bytes));
+    
+    console.log('Base64 çözümlenmiş veri:', str);
+    
+    // Try to parse as JSON, otherwise return as string
+    try {
+      return JSON.parse(str);
+    } catch (e) {
+      return str;
+    }
+  } catch (e) {
+    console.error('Base64 çözümleme hatası:', e);
+    return '';
+  }
+}
+
+/**
+ * Celestia için doğru formatta string'i base64'e dönüştür
+ * @param {string} str - Dönüştürülecek string
+ * @returns {string} Base64 formatında veri
+ */
+function stringToBase64ForCelestia(str) {
+  // String'i byte array'e çevir
+  const bytes = new TextEncoder().encode(str);
+  
+  // Byte array'i base64'e çevir
+  let base64 = '';
+  const base64Chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+  let i;
+  
+  // Her 3 byte için 4 base64 karakteri oluştur
+  for (i = 0; i < bytes.length - 2; i += 3) {
+    base64 += base64Chars[(bytes[i] >> 2) & 0x3F];
+    base64 += base64Chars[((bytes[i] & 0x03) << 4) | ((bytes[i + 1] >> 4) & 0x0F)];
+    base64 += base64Chars[((bytes[i + 1] & 0x0F) << 2) | ((bytes[i + 2] >> 6) & 0x03)];
+    base64 += base64Chars[bytes[i + 2] & 0x3F];
+  }
+  
+  // Son kalan byteler için padding ekle
+  if (i < bytes.length) {
+    base64 += base64Chars[(bytes[i] >> 2) & 0x3F];
+    
+    if (i == bytes.length - 1) {
+      base64 += base64Chars[((bytes[i] & 0x03) << 4)];
+      base64 += '=='; // 2 padding karakteri
+    } else {
+      base64 += base64Chars[((bytes[i] & 0x03) << 4) | ((bytes[i + 1] >> 4) & 0x0F)];
+      base64 += base64Chars[((bytes[i + 1] & 0x0F) << 2)];
+      base64 += '='; // 1 padding karakteri
+    }
+  }
+  
+  return base64;
+}
+
+/**
  * Submit data to Celestia network
  * @param {string} ipfsHash - IPFS hash to store on Celestia
  * @param {string} namespace - Namespace to use (optional)
  * @returns {Promise<Object>} Transaction result with height and txhash
  */
 export async function submitToCelestia(ipfsHash, namespace = DEFAULT_NAMESPACE) {
-  // Validate inputs
   if (!ipfsHash) {
-    throw new Error('Invalid IPFS hash');
+    throw new Error('Geçersiz IPFS hash');
   }
   
   try {
-    console.log(`Submitting IPFS hash ${ipfsHash} to Celestia under namespace ${namespace}`);
+    console.log(`IPFS hash ${ipfsHash}'ini namespace ${namespace} altında Celestia'ya gönderiliyor`);
     
     // Check balance first before submission
     try {
@@ -237,17 +377,13 @@ export async function submitToCelestia(ipfsHash, namespace = DEFAULT_NAMESPACE) 
       // Continue with submission attempt
     }
     
-    // Convert namespace to hex if it's not already
+    // Namespace'i hex formatında hazırla
     const namespaceHex = namespace.startsWith('0x') 
       ? namespace 
       : `0x${toHexString(namespace)}`;
     
-    // Convert ipfsHash to hex for submission
-    const dataHex = ipfsHash.startsWith('0x')
-      ? ipfsHash
-      : `0x${toHexString(ipfsHash)}`;
-    
-    // Prepare the blob submission request
+    // Burada değişiklik yapıyoruz - veriyi düz metin olarak gönder
+    // Düz metin veriyi Celestia otomatik olarak base64'e dönüştürecek
     const rpcRequest = {
       jsonrpc: "2.0",
       id: 1, 
@@ -256,13 +392,15 @@ export async function submitToCelestia(ipfsHash, namespace = DEFAULT_NAMESPACE) 
         [
           {
             namespace: namespaceHex,
-            data: dataHex,
+            data: ipfsHash, // Düz metin olarak, önceden base64'e dönüştürmeden
             share_version: 0
           }
         ],
         0.002 // Default gas price
       ]
     };
+    
+    console.log('Celestia blob gönderme isteği:', JSON.stringify(rpcRequest, null, 2));
     
     // Submit blob to Celestia
     const response = await axios.post(
@@ -405,15 +543,24 @@ export async function getDataFromCelestia(height, namespace = DEFAULT_NAMESPACE)
       
       // Try to parse as JSON if possible
       try {
-        // If data is hex encoded, convert to string first
+        // Önce veri formatını kontrol et
         if (data.startsWith('0x')) {
+          // Hex formatında veri
           data = fromHexString(data.slice(2));
+        } else {
+          // Base64 formatında veri olabilir
+          try {
+            data = fromBase64String(data);
+          } catch (e) {
+            // Base64 değilse, ham veriyi kullan
+            console.log('Base64 conversion failed, using raw data');
+          }
         }
         
         // Try to parse as JSON
         return {
           raw: data,
-          parsed: JSON.parse(data),
+          parsed: typeof data === 'string' ? JSON.parse(data) : data,
           namespace: blob.namespace,
           commitment: blob.commitment
         };
@@ -459,7 +606,10 @@ export async function verifyCelestiaData(height, expectedIpfsHash, namespace = D
     if (!result || !result.data || result.data.length === 0) {
       return {
         isValid: false,
-        error: 'No data found'
+        error: 'No data found',
+        height,
+        namespace,
+        timestamp: new Date().toISOString()
       };
     }
     
@@ -473,9 +623,16 @@ export async function verifyCelestiaData(height, expectedIpfsHash, namespace = D
         blobData = JSON.stringify(blobData);
       }
       
+      // Ham veri string değilse
+      if (typeof blobData !== 'string') {
+        console.log('Non-string blob data found:', blobData);
+        continue;
+      }
+      
       // Check if this blob contains our IPFS hash
       if (blobData.includes(expectedIpfsHash)) {
         found = true;
+        console.log('IPFS hash verified in Celestia blob:', expectedIpfsHash);
         break;
       }
     }
@@ -485,7 +642,7 @@ export async function verifyCelestiaData(height, expectedIpfsHash, namespace = D
       height,
       namespace,
       timestamp: new Date().toISOString(),
-      error: found ? null : 'IPFS hash not found in blob data'
+      error: found ? null : `IPFS hash '${expectedIpfsHash}' not found in blob data`
     };
   } catch (error) {
     console.error('Error verifying Celestia data:', error);
@@ -493,7 +650,8 @@ export async function verifyCelestiaData(height, expectedIpfsHash, namespace = D
       isValid: false,
       error: error.message,
       height,
-      namespace
+      namespace,
+      timestamp: new Date().toISOString()
     };
   }
 }
