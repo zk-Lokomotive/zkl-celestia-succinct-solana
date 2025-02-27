@@ -136,7 +136,14 @@ export async function checkCelestiaConnection() {
  * @returns {Object} Connection information
  */
 export function getCelestiaConnectionInfo() {
-  const connectionInfoStr = sessionStorage.getItem('celestia_connection_info');
+  // Önce yeni anahtarı dene
+  let connectionInfoStr = sessionStorage.getItem('celestiaConnectionInfo');
+  
+  // Eğer yoksa, eski anahtarı kontrol et
+  if (!connectionInfoStr) {
+    connectionInfoStr = sessionStorage.getItem('celestia_connection_info');
+  }
+  
   if (!connectionInfoStr) {
     return {
       isConnected: false,
@@ -147,10 +154,10 @@ export function getCelestiaConnectionInfo() {
   try {
     return JSON.parse(connectionInfoStr);
   } catch (error) {
-    console.error('Celestia connection information parsing error:', error);
+    console.error('Celestia bağlantı bilgisi çözümleme hatası:', error);
     return {
       isConnected: false,
-      error: 'Connection information parsing error'
+      error: 'Bağlantı bilgisi çözümleme hatası'
     };
   }
 }

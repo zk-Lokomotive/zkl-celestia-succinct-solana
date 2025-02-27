@@ -15,7 +15,7 @@
     status = 'checking';
     try {
       const connectionInfo = await checkCelestiaConnection();
-      status = connectionInfo.isConnected ? 'connected' : 'disconnected';
+      status = connectionInfo.status === 'connected' || connectionInfo.connected ? 'connected' : 'disconnected';
       lastCheck = new Date();
       networkInfo = connectionInfo.network;
       blockHeight = connectionInfo.height;
@@ -31,14 +31,14 @@
   
   function getStoredConnectionInfo() {
     const info = getCelestiaConnectionInfo();
-    if (info && info.isConnected) {
+    if (info && (info.isConnected || info.status === 'connected' || info.connected === true)) {
       status = 'connected';
       networkInfo = info.network;
       blockHeight = info.height;
-      lastCheck = new Date(info.timestamp);
+      lastCheck = new Date(info.timestamp || Date.now());
     } else if (info) {
       status = 'disconnected';
-      lastCheck = info.lastChecked ? new Date(info.lastChecked) : null;
+      lastCheck = info.lastChecked ? new Date(info.lastChecked) : (info.timestamp ? new Date(info.timestamp) : null);
     }
   }
   
