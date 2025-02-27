@@ -3,7 +3,7 @@
 
 ## Demo
 
-https://github.com/user-attachments/assets/6027e1f5-79a5-4c0c-bd41-5d68d378699e
+
 
 ## Technical Overview
 
