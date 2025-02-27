@@ -1,18 +1,93 @@
 import { writable } from 'svelte/store';
 import { userDatabase } from './database.js';
 
-const storedWallet = JSON.parse(localStorage.getItem('wallet')) || {
+// Wallet durumu için başlangıç değerleri
+const initialState = {
   connected: false,
   publicKey: null,
   username: null,
-  avatar: null
+  avatar: null,
+  balance: null,
+  autoconnect: false
 };
 
-export const walletStore = writable(storedWallet);
+// Wallet store'unu oluştur
+function createWalletStore() {
+  // Browser'da localStorage var mı kontrol et
+  const savedState = typeof localStorage !== 'undefined' 
+    ? JSON.parse(localStorage.getItem('wallet_state') || 'null')
+    : null;
+  
+  // Başlangıç durumunu localStorage'dan al ya da default değerleri kullan
+  const startState = savedState || initialState;
+  
+  const { subscribe, set, update } = writable(startState);
 
-walletStore.subscribe(value => {
-  localStorage.setItem('wallet', JSON.stringify(value));
-});
+  return {
+    subscribe,
+    
+    // Cüzdanı bağla
+    connect: (publicKey, username, avatar) => update(state => {
+      const newState = { 
+        ...state, 
+        connected: true, 
+        publicKey, 
+        username,
+        avatar,
+        autoconnect: true 
+      };
+      
+      // LocalStorage'a kaydet
+      try {
+        localStorage.setItem('wallet_state', JSON.stringify(newState));
+      } catch (e) {
+        console.error('Wallet durumu kaydedilemedi:', e);
+      }
+      
+      return newState;
+    }),
+    
+    // Cüzdanı bağlantısını kes
+    disconnect: () => update(state => {
+      const newState = { 
+        ...state, 
+        connected: false, 
+        publicKey: null,
+        username: null,
+        avatar: null,
+        balance: null,
+        autoconnect: false 
+      };
+      
+      // LocalStorage'ı temizle
+      try {
+        localStorage.removeItem('wallet_state');
+      } catch (e) {
+        console.error('Wallet durumu temizlenemedi:', e);
+      }
+      
+      return newState;
+    }),
+    
+    // Bakiyeyi güncelle
+    updateBalance: (balance) => update(state => {
+      const newState = { ...state, balance };
+      
+      // LocalStorage'a kaydet
+      try {
+        localStorage.setItem('wallet_state', JSON.stringify(newState));
+      } catch (e) {
+        console.error('Wallet durumu güncellenemedi:', e);
+      }
+      
+      return newState;
+    }),
+    
+    set
+  };
+}
+
+export const walletStore = createWalletStore();
 
 function generateRandomAvatar() {
   const styles = ['pixel-art', 'avataaars', 'bottts', 'micah'];
@@ -39,13 +114,8 @@ export const connectWallet = async () => {
     const avatar = generateRandomAvatar();
     
     // Update wallet store
-    walletStore.set({
-      connected: true,
-      publicKey,
-      username,
-      avatar
-    });
-
+    walletStore.connect(publicKey, username, avatar);
+    
     // Add or update user in database
     userDatabase.addUser(publicKey, {
       username,
@@ -56,12 +126,7 @@ export const connectWallet = async () => {
     return true;
   } catch (error) {
     console.error('Error connecting wallet:', error);
-    walletStore.set({
-      connected: false,
-      publicKey: null,
-      username: null,
-      avatar: null
-    });
+    walletStore.disconnect();
     throw error;
   }
 };
@@ -73,12 +138,7 @@ export const disconnectWallet = async () => {
     }
     
     // Update wallet store
-    walletStore.set({
-      connected: false,
-      publicKey: null,
-      username: null,
-      avatar: null
-    });
+    walletStore.disconnect();
 
     // Logout from database
     userDatabase.logout();

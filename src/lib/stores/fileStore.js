@@ -120,6 +120,7 @@ function createFileStore() {
             type: selectedFile.type
           },
           ipfs: { cid },
+          ipfsHash: cid.toString(),
           celestia: celestiaData,
           zkProof: zkProofData ? {
             timestamp: zkProofData.timestamp,
@@ -141,6 +142,39 @@ function createFileStore() {
           zkProofData,
           transferHistory: [transferRecord, ...s.transferHistory]
         }));
+        
+        try {
+          console.log(`Alıcı ${recipient} için inbox'a mesaj ekleniyor...`);
+          
+          const inboxMessage = {
+            ipfsCid: cid.toString(),
+            ipfsUrl: `https://ipfs.io/ipfs/${cid}`,
+            celestiaHeight: celestiaData?.height,
+            celestiaTxHash: celestiaData?.txhash,
+            celestiaUrl: celestiaData?.celestiaUrl,
+            celestiaNamespace: celestiaData?.namespace,
+            fileName: selectedFile.name,
+            fileSize: selectedFile.size,
+            fileType: selectedFile.type,
+            senderAddress: sender,
+            message: message,
+            transactionUrl: celestiaData?.celestiaUrl || `https://ipfs.io/ipfs/${cid}`,
+            zkProofAvailable: zkProofData ? true : false,
+            zkProofTimestamp: zkProofData?.timestamp,
+            timestamp: currentTime
+          };
+          
+          inboxStore.addMessage(recipient, inboxMessage);
+          console.log('Inbox mesajı eklendi:', inboxMessage);
+          
+          const currentWallet = get(walletStore).publicKey;
+          if (currentWallet && currentWallet === recipient) {
+            console.log('Alıcı aktif kullanıcı, inbox güncelleniyor...');
+            inboxStore.fetchFromCelestia(recipient);
+          }
+        } catch (inboxError) {
+          console.error('Inbox mesajı eklenirken hata:', inboxError);
+        }
         
         return transferRecord;
       } catch (error) {
