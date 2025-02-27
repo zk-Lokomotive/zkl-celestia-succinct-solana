@@ -1,5 +1,10 @@
 # zkλ: Decentralized Cryptographic File Sharing with Celestia DA and Zero Knowledge Proofs
 
+
+## Demo
+
+https://github.com/user-attachments/assets/6027e1f5-79a5-4c0c-bd41-5d68d378699e
+
 ## Technical Overview
 
 zkλ is a cutting-edge decentralized file sharing application that combines several advanced cryptographic primitives and blockchain technologies to provide secure, private, and verifiable file transfers. The application leverages a multi-layered architecture comprising:
