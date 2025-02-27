@@ -214,6 +214,8 @@ export function fromHexString(hexData) {
 
 /**
  * Convert a string or object to base64 format
+ * Bu yöntem, blob submit için kullanılmayacak,
+ * ancak diğer kısımlar için korunuyor.
  * @param {string|object} data - Data to convert
  * @returns {string} Base64 format data
  */
@@ -245,92 +247,24 @@ export function toBase64String(data) {
  */
 export function fromBase64String(base64Data) {
   try {
-    // Celestia formatında base64'den byte array'a dönüşüm
-    const base64Chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
-    let bytes = [];
-    let p = 0;
+    // Standart window.atob kullanarak base64'den decode et
+    const rawString = atob(base64Data);
     
-    // Padding karakterlerini kaldır
-    let cleanBase64 = base64Data.replace(/=+$/, '');
+    // UTF-8 karakterleri doğru şekilde işle
+    const result = decodeURIComponent(escape(rawString));
     
-    // 4 base64 karakterini 3 byte'a dönüştür
-    for (let i = 0; i < cleanBase64.length; i += 4) {
-      const chunk = [];
-      
-      // Her bir karakter grubu için base64 indekslerini al
-      for (let j = 0; j < 4; j++) {
-        if (i + j < cleanBase64.length) {
-          chunk.push(base64Chars.indexOf(cleanBase64[i + j]));
-        } else {
-          chunk.push(0); // Padding için 0 ekle
-        }
-      }
-      
-      // 4 base64 karakteri, 3 byte'a dönüştür
-      bytes.push((chunk[0] << 2) | (chunk[1] >> 4));
-      if (i + 2 < cleanBase64.length) {
-        bytes.push(((chunk[1] & 15) << 4) | (chunk[2] >> 2));
-      }
-      if (i + 3 < cleanBase64.length) {
-        bytes.push(((chunk[2] & 3) << 6) | chunk[3]);
-      }
-    }
-    
-    // Byte array'i UTF-8 string'e dönüştür
-    const decoder = new TextDecoder('utf-8');
-    const str = decoder.decode(new Uint8Array(bytes));
-    
-    console.log('Base64 çözümlenmiş veri:', str);
+    console.log('Base64 çözümlenmiş veri:', result);
     
     // Try to parse as JSON, otherwise return as string
     try {
-      return JSON.parse(str);
+      return JSON.parse(result);
     } catch (e) {
-      return str;
+      return result;
     }
   } catch (e) {
     console.error('Base64 çözümleme hatası:', e);
-    return '';
+    return base64Data; // Hata durumunda orijinal veriyi döndür
   }
-}
-
-/**
- * Celestia için doğru formatta string'i base64'e dönüştür
- * @param {string} str - Dönüştürülecek string
- * @returns {string} Base64 formatında veri
- */
-function stringToBase64ForCelestia(str) {
-  // String'i byte array'e çevir
-  const bytes = new TextEncoder().encode(str);
-  
-  // Byte array'i base64'e çevir
-  let base64 = '';
-  const base64Chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
-  let i;
-  
-  // Her 3 byte için 4 base64 karakteri oluştur
-  for (i = 0; i < bytes.length - 2; i += 3) {
-    base64 += base64Chars[(bytes[i] >> 2) & 0x3F];
-    base64 += base64Chars[((bytes[i] & 0x03) << 4) | ((bytes[i + 1] >> 4) & 0x0F)];
-    base64 += base64Chars[((bytes[i + 1] & 0x0F) << 2) | ((bytes[i + 2] >> 6) & 0x03)];
-    base64 += base64Chars[bytes[i + 2] & 0x3F];
-  }
-  
-  // Son kalan byteler için padding ekle
-  if (i < bytes.length) {
-    base64 += base64Chars[(bytes[i] >> 2) & 0x3F];
-    
-    if (i == bytes.length - 1) {
-      base64 += base64Chars[((bytes[i] & 0x03) << 4)];
-      base64 += '=='; // 2 padding karakteri
-    } else {
-      base64 += base64Chars[((bytes[i] & 0x03) << 4) | ((bytes[i + 1] >> 4) & 0x0F)];
-      base64 += base64Chars[((bytes[i + 1] & 0x0F) << 2)];
-      base64 += '='; // 1 padding karakteri
-    }
-  }
-  
-  return base64;
 }
 
 /**
@@ -340,6 +274,7 @@ function stringToBase64ForCelestia(str) {
  * @returns {Promise<Object>} Transaction result with height and txhash
  */
 export async function submitToCelestia(ipfsHash, namespace = DEFAULT_NAMESPACE) {
+  // Validate inputs
   if (!ipfsHash) {
     throw new Error('Geçersiz IPFS hash');
   }
@@ -377,13 +312,13 @@ export async function submitToCelestia(ipfsHash, namespace = DEFAULT_NAMESPACE) 
       // Continue with submission attempt
     }
     
-    // Namespace'i hex formatında hazırla
+    // Namespace'i hex formatında hazırla - daima 0x ile başlamalı
     const namespaceHex = namespace.startsWith('0x') 
       ? namespace 
       : `0x${toHexString(namespace)}`;
     
-    // Burada değişiklik yapıyoruz - veriyi düz metin olarak gönder
-    // Düz metin veriyi Celestia otomatik olarak base64'e dönüştürecek
+    // ÖNEMLİ DEĞİŞİKLİK: IPFS hash'ini veriyi düz metin olarak bırak
+    // Celestia kendi kendine encode edecek, böylece hata almazsınız
     const rpcRequest = {
       jsonrpc: "2.0",
       id: 1, 
@@ -392,7 +327,7 @@ export async function submitToCelestia(ipfsHash, namespace = DEFAULT_NAMESPACE) 
         [
           {
             namespace: namespaceHex,
-            data: ipfsHash, // Düz metin olarak, önceden base64'e dönüştürmeden
+            data: ipfsHash, // Düz metin olarak gönder - ÖNEMLİ
             share_version: 0
           }
         ],
@@ -498,7 +433,7 @@ export async function getDataFromCelestia(height, namespace = DEFAULT_NAMESPACE)
   try {
     console.log(`Retrieving data from Celestia at height ${height} for namespace ${namespace}`);
     
-    // Convert namespace to hex if it's not already
+    // Ensure namespace is formatted with 0x prefix
     const namespaceHex = namespace.startsWith('0x') 
       ? namespace 
       : `0x${toHexString(namespace)}`;
@@ -510,9 +445,11 @@ export async function getDataFromCelestia(height, namespace = DEFAULT_NAMESPACE)
       method: "blob.GetAll",
       params: [
         typeof height === 'string' ? parseInt(height, 10) : height,
-        namespaceHex
+        [namespaceHex] // Namespace artık bir array olarak gönderiliyor - ÖNEMLİ
       ]
     };
+    
+    console.log('Celestia GetAll isteği:', JSON.stringify(rpcRequest, null, 2));
     
     // Get blobs from Celestia
     const response = await axios.post(
@@ -530,6 +467,9 @@ export async function getDataFromCelestia(height, namespace = DEFAULT_NAMESPACE)
       throw new Error(`Celestia error: ${response.data.error.message || JSON.stringify(response.data.error)}`);
     }
     
+    // Yanıtı process et
+    console.log('Celestia GetAll yanıtı:', JSON.stringify(response.data, null, 2));
+    
     // The result should be an array of blobs
     const blobs = response.data.result || [];
     
@@ -541,38 +481,19 @@ export async function getDataFromCelestia(height, namespace = DEFAULT_NAMESPACE)
     const processedData = blobs.map(blob => {
       let data = blob.data;
       
-      // Try to parse as JSON if possible
-      try {
-        // Önce veri formatını kontrol et
-        if (data.startsWith('0x')) {
-          // Hex formatında veri
-          data = fromHexString(data.slice(2));
-        } else {
-          // Base64 formatında veri olabilir
-          try {
-            data = fromBase64String(data);
-          } catch (e) {
-            // Base64 değilse, ham veriyi kullan
-            console.log('Base64 conversion failed, using raw data');
-          }
-        }
-        
-        // Try to parse as JSON
-        return {
-          raw: data,
-          parsed: typeof data === 'string' ? JSON.parse(data) : data,
-          namespace: blob.namespace,
-          commitment: blob.commitment
-        };
-      } catch (e) {
-        // If not JSON, return as is
-        return {
-          raw: data,
-          parsed: null,
-          namespace: blob.namespace,
-          commitment: blob.commitment
-        };
-      }
+      console.log('Ham blob verisi:', data);
+      
+      // Çoğu durumda, data doğrudan IPFS hash olarak gelecektir,
+      // çünkü düz metin olarak gönderdik.
+      // Ancak bazı durumlarda formatlama olabilir, bunları kontrol edelim.
+      
+      // Ham veriyi de saklayalım
+      return {
+        raw: data,
+        parsed: typeof data === 'string' ? data : JSON.stringify(data),
+        namespace: blob.namespace,
+        commitment: blob.commitment
+      };
     });
     
     return {
