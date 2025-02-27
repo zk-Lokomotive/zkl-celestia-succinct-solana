@@ -6,13 +6,17 @@
 
 import axios from 'axios';
 
-// Celestia light client API endpoint
-// These details are used to connect to the actual Celestia network
-const CELESTIA_API_ENDPOINT = 'http://localhost:26659';
+// Yerel API proxy bağlantısı (CORS hatalarını önler)
+const CELESTIA_API_ENDPOINT = 'http://localhost:3080/api/celestia';
 const CELESTIA_AUTH_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJBbGxvdyI6WyJwdWJsaWMiLCJyZWFkIiwid3JpdGUiLCJhZG1pbiJdLCJOb25jZSI6IlFJdno4WFc5WHdQQ3BNRkcxRG9QMTNVTk05NlNOQnFPeUtkcEdRaVFXaU09IiwiRXhwaXJlc0F0IjoiMDAwMS0wMS0wMVQwMDowMDowMFoifQ.Sbk2uLWPP53IY2qDIhTDnY0Z5ArkIrrU8sO1AM_x1tQ';
 // Namespace prefix - a fixed namespace prefix for the application
 // makes it easier to find the data
 const DEFAULT_NAMESPACE = 'zkl-ipfs';
+
+// Axios CORS yapılandırması
+axios.defaults.headers.common['Access-Control-Allow-Origin'] = '*';
+axios.defaults.headers.common['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS, PUT, PATCH, DELETE';
+axios.defaults.headers.common['Access-Control-Allow-Headers'] = 'Origin, X-Requested-With, Content-Type, Accept, Authorization';
 
 /**
  * Check Celestia connection
@@ -20,10 +24,16 @@ const DEFAULT_NAMESPACE = 'zkl-ipfs';
  */
 export async function checkCelestiaConnection() {
   try {
-    // Check Celestia node status
-    const response = await axios.get(`${CELESTIA_API_ENDPOINT}/header/status`, {
+    // Check Celestia node status using JSON-RPC
+    const response = await axios.post(CELESTIA_API_ENDPOINT, {
+      jsonrpc: "2.0",
+      id: 1,
+      method: "node.Info",
+      params: []
+    }, {
       headers: {
-        'Authorization': `Bearer ${CELESTIA_AUTH_TOKEN}`
+        'Authorization': `Bearer ${CELESTIA_AUTH_TOKEN}`,
+        'Content-Type': 'application/json'
       },
       // Set timeout to prevent long hanging requests
       timeout: 5000
@@ -34,27 +44,70 @@ export async function checkCelestiaConnection() {
     
     const connectionInfo = {
       timestamp: new Date().toISOString(),
-      network: response.data?.network || 'unknown',
-      height: response.data?.height || 0,
-      lastHeightRecorded: response.data?.height || 0,
-      isConnected: true
+      network: 'mocha', // Varsayılan ağ
+      api_version: response.data?.result?.api_version || 'unknown',
+      node_type: response.data?.result?.type || 0,
+      connected: true
     };
     
-    sessionStorage.setItem('celestia_connection_info', JSON.stringify(connectionInfo));
+    // Try to get balance information
+    try {
+      const balanceResponse = await axios.post(CELESTIA_API_ENDPOINT, {
+        jsonrpc: "2.0",
+        id: 1,
+        method: "state.Balance",
+        params: []
+      }, {
+        headers: {
+          'Authorization': `Bearer ${CELESTIA_AUTH_TOKEN}`,
+          'Content-Type': 'application/json'
+        },
+        timeout: 3000
+      });
+      
+      if (balanceResponse.data?.result) {
+        connectionInfo.balance = balanceResponse.data.result.amount;
+        connectionInfo.denom = balanceResponse.data.result.denom;
+        
+        // Add a warning if balance is low
+        if (parseInt(connectionInfo.balance, 10) <= 0) {
+          connectionInfo.balanceWarning = 'Yetersiz bakiye. Veri yükleyemezsiniz.';
+        }
+      }
+    } catch (balanceError) {
+      console.warn('Bakiye kontrol edilirken hata oluştu:', balanceError);
+      connectionInfo.balanceError = 'Bakiye bilgisi alınamadı';
+    }
     
-    return connectionInfo;
+    // Save connection status to session storage for UI components
+    try {
+      sessionStorage.setItem('celestiaConnectionInfo', JSON.stringify(connectionInfo));
+    } catch (storageError) {
+      console.warn('Failed to save connection info to session storage:', storageError);
+    }
+    
+    return {
+      status: 'connected',
+      ...connectionInfo
+    };
   } catch (error) {
-    console.error('Celestia node connection error:', error);
+    console.error('Celestia connection error:', error);
     
-    const connectionInfo = {
+    const errorInfo = {
       timestamp: new Date().toISOString(),
-      error: error.message || 'Network connection error',
-      isConnected: false
+      error: error.message,
+      status: 'disconnected',
+      userMessage: 'Celestia node bağlantısı kurulamadı. Lütfen node\'un çalıştığından emin olun.'
     };
     
-    sessionStorage.setItem('celestia_connection_info', JSON.stringify(connectionInfo));
+    // Save error status to session storage
+    try {
+      sessionStorage.setItem('celestiaConnectionInfo', JSON.stringify(errorInfo));
+    } catch (storageError) {
+      console.warn('Failed to save connection error to session storage:', storageError);
+    }
     
-    throw new Error(`Celestia node connection error: ${error.message || 'Network connection error'}`);
+    throw new Error(`Celestia bağlantısı başarısız: ${error.message}`);
   }
 }
 
@@ -140,73 +193,120 @@ export function fromHexString(hexData) {
 }
 
 /**
- * Upload IPFS hash to Celestia
- * @param {string} ipfsHash - IPFS CID
- * @param {string} namespace - Optional custom namespace
- * @returns {Promise<Object>} Operation result
+ * Submit data to Celestia network
+ * @param {string} ipfsHash - IPFS hash to store on Celestia
+ * @param {string} namespace - Namespace to use (optional)
+ * @returns {Promise<Object>} Transaction result with height and txhash
  */
 export async function submitToCelestia(ipfsHash, namespace = DEFAULT_NAMESPACE) {
+  // Validate inputs
+  if (!ipfsHash) {
+    throw new Error('Invalid IPFS hash');
+  }
+  
   try {
-    // Convert namespace to hexadecimal format using browser-compatible method
-    let namespaceHex = '';
-    for (let i = 0; i < namespace.length; i++) {
-      const hex = namespace.charCodeAt(i).toString(16);
-      namespaceHex += hex.length === 2 ? hex : '0' + hex;
+    console.log(`Submitting IPFS hash ${ipfsHash} to Celestia under namespace ${namespace}`);
+    
+    // Check balance first before submission
+    try {
+      const balanceResponse = await axios.post(
+        CELESTIA_API_ENDPOINT,
+        {
+          jsonrpc: "2.0",
+          id: 1,
+          method: "state.Balance",
+          params: []
+        },
+        {
+          headers: {
+            'Authorization': `Bearer ${CELESTIA_AUTH_TOKEN}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+      
+      if (balanceResponse.data?.result?.amount) {
+        const balance = parseInt(balanceResponse.data.result.amount, 10);
+        if (balance <= 0) {
+          console.warn('Celestia account has insufficient balance');
+          throw new Error('Yetersiz Celestia bakiyesi. Lütfen hesabınıza bakiye yükleyin.');
+        }
+      }
+    } catch (balanceError) {
+      console.warn('Could not check balance:', balanceError);
+      // Continue with submission attempt
     }
     
-    // Create payload containing IPFS hash and metadata
-    const payload = {
-      ipfsHash,
-      timestamp: new Date().toISOString(),
-      signature: generateSignature(ipfsHash),
-      metadata: {
-        source: 'zkl-file-transfer',
-        version: '1.0.0'
-      }
+    // Convert namespace to hex if it's not already
+    const namespaceHex = namespace.startsWith('0x') 
+      ? namespace 
+      : `0x${toHexString(namespace)}`;
+    
+    // Convert ipfsHash to hex for submission
+    const dataHex = ipfsHash.startsWith('0x')
+      ? ipfsHash
+      : `0x${toHexString(ipfsHash)}`;
+    
+    // Prepare the blob submission request
+    const rpcRequest = {
+      jsonrpc: "2.0",
+      id: 1, 
+      method: "blob.Submit",
+      params: [
+        [
+          {
+            namespace: namespaceHex,
+            data: dataHex,
+            share_version: 0
+          }
+        ],
+        0.002 // Default gas price
+      ]
     };
     
-    // Convert payload to string and then to hexadecimal format
-    const data = toHexString(payload);
-    
-    // Send SubmitPayForBlob request to Celestia
+    // Submit blob to Celestia
     const response = await axios.post(
-      `${CELESTIA_API_ENDPOINT}/submit_pfb`,
-      {
-        namespace_id: namespaceHex,
-        data: data,
-        gas_limit: 100000,
-        fee: 10000
-      },
+      CELESTIA_API_ENDPOINT,
+      rpcRequest,
       {
         headers: {
           'Authorization': `Bearer ${CELESTIA_AUTH_TOKEN}`,
           'Content-Type': 'application/json'
-        },
-        timeout: 10000 // 10 second timeout
+        }
       }
     );
     
-    // Get returned height and txhash information
-    const { height, txhash } = response.data;
-    console.log('Celestia upload successful:', { height, txhash, namespace });
+    if (response.data.error) {
+      // Check for insufficient balance error specifically
+      if (response.data.error.message && response.data.error.message.includes('insufficient')) {
+        throw new Error('Yetersiz Celestia bakiyesi. Lütfen hesabınıza bakiye yükleyin.');
+      }
+      throw new Error(`Celestia error: ${response.data.error.message || JSON.stringify(response.data.error)}`);
+    }
     
-    // Save operation to localStorage (for past tracking)
-    saveTransactionToHistory(txhash, height, namespace, ipfsHash);
+    const height = response.data.result;
     
-    // Create Celestia explorer URL
-    const celestiaUrl = `https://celenium.io/tx/${txhash}`;
+    console.log(`Data submitted to Celestia at height: ${height}`);
     
-    return { 
-      height, 
-      txhash, 
-      namespace,
-      celestiaUrl,
-      explorerUrl: celestiaUrl,
-      timestamp: new Date().toISOString()
+    const txResult = {
+      height,
+      txhash: `celestia-pfb-${Date.now()}`, // Gerçek txhash yerine placeholder kullanıyoruz
+      celestiaUrl: `https://celenium.io/${height}/${namespaceHex}`,
+      namespace: namespaceHex,
+      ipfsHash
     };
+    
+    // Save transaction to history
+    saveTransactionToHistory(txResult.txhash, height, namespace, ipfsHash);
+    
+    return txResult;
   } catch (error) {
-    console.error('Celestia upload error:', error);
-    throw new Error(`Celestia data upload failed: ${error.message || 'Network connection error'}`);
+    console.error('Error submitting to Celestia:', error);
+    // Check for specific error messages
+    if (error.message.includes('insufficient') || error.message.includes('balance') || error.message.includes('bakiye')) {
+      throw new Error('Yetersiz Celestia bakiyesi. Lütfen hesabınıza bakiye yükleyin.');
+    }
+    throw new Error(`Failed to submit to Celestia: ${error.message}`);
   }
 }
 
@@ -247,69 +347,153 @@ export function getAllCelestiaTransactions() {
 }
 
 /**
- * Get data from Celestia
+ * Get data from Celestia by height and namespace
  * @param {number} height - Block height
- * @param {string} namespace - Used namespace
+ * @param {string} namespace - Namespace to query
  * @returns {Promise<Object>} Retrieved data
  */
 export async function getDataFromCelestia(height, namespace = DEFAULT_NAMESPACE) {
+  if (!height) {
+    throw new Error('Block height is required');
+  }
+  
   try {
-    // Convert namespace to hexadecimal format using browser-compatible method
-    let namespaceHex = '';
-    for (let i = 0; i < namespace.length; i++) {
-      const hex = namespace.charCodeAt(i).toString(16);
-      namespaceHex += hex.length === 2 ? hex : '0' + hex;
-    }
+    console.log(`Retrieving data from Celestia at height ${height} for namespace ${namespace}`);
     
-    // Get data from specified height and namespace
-    const response = await axios.get(
-      `${CELESTIA_API_ENDPOINT}/namespaced_shares/${namespaceHex}/height/${height}`,
+    // Convert namespace to hex if it's not already
+    const namespaceHex = namespace.startsWith('0x') 
+      ? namespace 
+      : `0x${toHexString(namespace)}`;
+    
+    // Prepare the blob get-all request
+    const rpcRequest = {
+      jsonrpc: "2.0",
+      id: 1, 
+      method: "blob.GetAll",
+      params: [
+        typeof height === 'string' ? parseInt(height, 10) : height,
+        namespaceHex
+      ]
+    };
+    
+    // Get blobs from Celestia
+    const response = await axios.post(
+      CELESTIA_API_ENDPOINT,
+      rpcRequest,
       {
         headers: {
-          'Authorization': `Bearer ${CELESTIA_AUTH_TOKEN}`
-        },
-        timeout: 10000 // 10 second timeout
+          'Authorization': `Bearer ${CELESTIA_AUTH_TOKEN}`,
+          'Content-Type': 'application/json'
+        }
       }
     );
     
-    if (!response.data || !response.data.shares || response.data.shares.length === 0) {
-      throw new Error('Data not found');
+    if (response.data.error) {
+      throw new Error(`Celestia error: ${response.data.error.message || JSON.stringify(response.data.error)}`);
     }
     
-    // Convert hexadecimal format data to original format
-    const hexData = response.data.shares[0]; // Get first share
-    return fromHexString(hexData);
+    // The result should be an array of blobs
+    const blobs = response.data.result || [];
+    
+    if (blobs.length === 0) {
+      throw new Error(`No data found at height ${height} for namespace ${namespace}`);
+    }
+    
+    // Process the blobs - we expect the blob data to be our IPFS hash or payload
+    const processedData = blobs.map(blob => {
+      let data = blob.data;
+      
+      // Try to parse as JSON if possible
+      try {
+        // If data is hex encoded, convert to string first
+        if (data.startsWith('0x')) {
+          data = fromHexString(data.slice(2));
+        }
+        
+        // Try to parse as JSON
+        return {
+          raw: data,
+          parsed: JSON.parse(data),
+          namespace: blob.namespace,
+          commitment: blob.commitment
+        };
+      } catch (e) {
+        // If not JSON, return as is
+        return {
+          raw: data,
+          parsed: null,
+          namespace: blob.namespace,
+          commitment: blob.commitment
+        };
+      }
+    });
+    
+    return {
+      height,
+      namespace: namespaceHex,
+      data: processedData,
+      timestamp: new Date().toISOString()
+    };
   } catch (error) {
-    console.error('Error getting data from Celestia:', error);
-    throw new Error(`Celestia data retrieval failed: ${error.message || 'Network connection error'}`);
+    console.error('Error retrieving data from Celestia:', error);
+    throw new Error(`Failed to retrieve data from Celestia: ${error.message}`);
   }
 }
 
 /**
- * Verify data
- * @param {number} height - Block height
+ * Verify data on Celestia matches expected IPFS hash
+ * @param {number} height - Block height 
  * @param {string} expectedIpfsHash - Expected IPFS hash
  * @param {string} namespace - Used namespace
  * @returns {Promise<Object>} Verification result
  */
 export async function verifyCelestiaData(height, expectedIpfsHash, namespace = DEFAULT_NAMESPACE) {
+  if (!height || !expectedIpfsHash) {
+    throw new Error('Height and expected IPFS hash are required');
+  }
+  
   try {
-    const data = await getDataFromCelestia(height, namespace);
+    // Get data from Celestia
+    const result = await getDataFromCelestia(height, namespace);
     
-    // Verify IPFS hash
-    if (data.ipfsHash !== expectedIpfsHash) {
-      throw new Error('IPFS hash mismatch');
+    if (!result || !result.data || result.data.length === 0) {
+      return {
+        isValid: false,
+        error: 'No data found'
+      };
+    }
+    
+    // Check if any of the blobs contain our expected IPFS hash
+    let found = false;
+    for (const blob of result.data) {
+      // Convert data to string if necessary
+      let blobData = blob.raw;
+      
+      if (typeof blobData === 'object') {
+        blobData = JSON.stringify(blobData);
+      }
+      
+      // Check if this blob contains our IPFS hash
+      if (blobData.includes(expectedIpfsHash)) {
+        found = true;
+        break;
+      }
     }
     
     return {
-      isValid: true,
-      data
+      isValid: found,
+      height,
+      namespace,
+      timestamp: new Date().toISOString(),
+      error: found ? null : 'IPFS hash not found in blob data'
     };
   } catch (error) {
-    console.error('Verification error:', error);
+    console.error('Error verifying Celestia data:', error);
     return {
       isValid: false,
-      error: error.message || 'Verification failed'
+      error: error.message,
+      height,
+      namespace
     };
   }
 }
