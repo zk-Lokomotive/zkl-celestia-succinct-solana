@@ -1,126 +1,490 @@
-# Svelte + Vite
+# zkλ: Decentralized Cryptographic File Sharing with Celestia DA and Zero Knowledge Proofs
 
-This template should help get you started developing with Svelte in Vite.
+## Technical Overview
 
-## Recommended IDE Setup
+zkλ is a cutting-edge decentralized file sharing application that combines several advanced cryptographic primitives and blockchain technologies to provide secure, private, and verifiable file transfers. The application leverages a multi-layered architecture comprising:
 
-[VS Code](https://code.visualstudio.com/) + [Svelte](https://marketplace.visualstudio.com/items?itemName=svelte.svelte-vscode).
+1. **InterPlanetary File System (IPFS)** - Distributed content-addressable storage
+2. **Celestia Data Availability (DA) Layer** - Guaranteeing blockchain-level data persistence
+3. **Zero Knowledge Proofs (ZK)** - Privacy-preserving verification mechanisms
+4. **Svelte Frontend** - Reactive and efficient user interface
 
-## Need an official Svelte framework?
+This technological stack creates a powerful synergy between decentralized storage, data availability guarantees, and cryptographic verifiability while maintaining a seamless user experience.
 
-Check out [SvelteKit](https://github.com/sveltejs/kit#readme), which is also powered by Vite. Deploy anywhere with its serverless-first approach and adapt to various platforms, with out of the box support for TypeScript, SCSS, and Less, and easily-added support for mdsvex, GraphQL, PostCSS, Tailwind CSS, and more.
+## Core Technologies
 
-## Technical considerations
+### Celestia Data Availability Layer
 
-**Why use this over SvelteKit?**
+Celestia is used as a Data Availability (DA) layer within zkλ for the following reasons:
 
-- It brings its own routing solution which might not be preferable for some users.
-- It is first and foremost a framework that just happens to use Vite under the hood, not a Vite app.
+- **Data Persistence**: Celestia provides a blockchain-based guarantee that IPFS Content Identifiers (CIDs) will remain available even if IPFS nodes go offline, solving the persistence problem of pure P2P storage systems.
+- **Verifiable Namespaces**: zkλ utilizes Celestia's namespace system (`0x7a6b6c2d69706673` and custom namespaces) to organize and categorize different file transfers while ensuring they can be cryptographically verified.
+- **Light Client Compatibility**: The application connects to a Celestia light node, making it possible to interact with the blockchain without maintaining a full node, significantly reducing resource requirements.
+- **Payload Blob Submission**: When a file is uploaded to IPFS, its CID is submitted as a Celestia blob with associated metadata, creating an immutable record of the transfer that can be later verified.
 
-This template contains as little as possible to get started with Vite + Svelte, while taking into account the developer experience with regards to HMR and intellisense. It demonstrates capabilities on par with the other `create-vite` templates and is a good starting point for beginners dipping their toes into a Vite + Svelte project.
+Implementation details:
+- Communication with Celestia occurs through a dedicated API proxy server (`celestia-api.cjs`) 
+- The system uses the `blob.Submit` and `blob.GetAll` methods of the Celestia API
+- Celestia transactions are viewable through the integrated explorer at `https://explorer.consensus-celestia.app/`
 
-Should you later need the extended capabilities and extensibility provided by SvelteKit, the template has been structured similarly to SvelteKit so that it is easy to migrate.
+### Zero Knowledge Proofs
 
-**Why `global.d.ts` instead of `compilerOptions.types` inside `jsconfig.json` or `tsconfig.json`?**
+The ZK integration in zkλ serves multiple critical functions:
 
-Setting `compilerOptions.types` shuts out all other types not explicitly listed in the configuration. Using triple-slash references keeps the default TypeScript setting of accepting type information from the entire workspace, while also adding `svelte` and `vite/client` type information.
+- **Privacy-Preserving Verification**: Allows proving the integrity and existence of a file without revealing its contents
+- **Selective Disclosure**: Enables users to prove specific properties about files without revealing all data
+- **Mathematical Certainty**: Provides cryptographic guarantees rather than trust-based assurances
 
-**Why include `.vscode/extensions.json`?**
+Technical implementation:
+- Uses `snarkjs` library for ZK circuit execution
+- Implements `groth16` proving system for efficiency and security
+- Includes custom circuits located in `/public/circuits/`
+- Handles circuit execution in the browser through WebAssembly
 
-Other templates indirectly recommend extensions via the README, but this file allows VS Code to prompt the user to install the recommended extension upon opening the project.
+The ZK proving process follows these steps:
+1. Calculate a numerical representation of the IPFS CID
+2. Generate a witness using the file hash and a secret
+3. Create a ZK proof using the precompiled circuit
+4. Store verification data alongside the file reference
 
-**Why enable `checkJs` in the JS template?**
+## System Architecture
 
-It is likely that most cases of changing variable types in runtime are likely to be accidental, rather than deliberate. This provides advanced typechecking out of the box. Should you like to take advantage of the dynamically-typed nature of JavaScript, it is trivial to change the configuration.
+The zkλ architecture consists of several interconnected components:
 
-**Why is HMR not preserving my local component state?**
-
-HMR state preservation comes with a number of gotchas! It has been disabled by default in both `svelte-hmr` and `@sveltejs/vite-plugin-svelte` due to its often surprising behavior. You can read the details [here](https://github.com/sveltejs/svelte-hmr/tree/master/packages/svelte-hmr#preservation-of-local-state).
-
-If you have state that's important to retain within a component, consider creating an external store which would not be replaced by HMR.
-
-```js
-// store.js
-// An extremely simple external store
-import { writable } from 'svelte/store'
-export default writable(0)
+```
+┌───────────────────┐     ┌─────────────────────┐     ┌─────────────────┐
+│                   │     │                     │     │                 │
+│  Svelte Frontend  │◄───►│  zkλ Core Services  │◄───►│  API Proxy      │
+│  (User Interface) │     │  (Business Logic)   │     │  (Server)       │
+│                   │     │                     │     │                 │
+└────────┬──────────┘     └─────────┬───────────┘     └────────┬────────┘
+         │                          │                          │
+         │                          │                          │
+         ▼                          ▼                          ▼
+┌────────────────────────────────────────────────────────────────────────┐
+│                                                                        │
+│                           External Services                            │
+│                                                                        │
+├────────────────┬─────────────────────────────┬───────────────────────┐ │
+│                │                             │                       │ │
+│  IPFS Node     │  Celestia Light Node       │  ZK Circuit Execution │ │
+│  (Storage)     │  (Data Availability)        │  (Verification)       │ │
+│                │                             │                       │ │
+└────────────────┴─────────────────────────────┴───────────────────────┘ │
+│                                                                        │
+└────────────────────────────────────────────────────────────────────────┘
 ```
 
-# ZKL (Zero Knowledge Lambda) - Solana & Celestia & ZK File Transfer
+### Core Components
 
-ZKL, dosyaları güvenli bir şekilde paylaşmak için IPFS, Solana, Celestia Data Availability (DA) katmanı ve Zero Knowledge Proof (ZKP) teknolojilerini birleştiren güçlü bir merkezi olmayan dosya transfer uygulamasıdır.
+1. **Service Layer** (`/src/lib/services/`)
+   - `celestia.js` - Handles all interactions with the Celestia DA layer
+   - `ipfs.js` - Manages file uploads and downloads through IPFS
+   - `zk.js` - Implements Zero Knowledge Proof generation and verification
 
-## Özellikler
+2. **State Management** (`/src/lib/stores/`)
+   - `fileStore.js` - Manages file upload/download state and operations
+   - `inboxStore.js` - Maintains the user's inbox of received files
+   - `wallet.js` - Handles wallet connectivity and user authentication
+   - `themeStore.js` - Controls application theming
 
-- **IPFS Entegrasyonu**: Dosyaları merkezi olmayan depolama üzerinde barındırma
-- **Solana Blockchain**: İşlemleri, dosya referanslarını ve doğrulamaları kaydetme
-- **Celestia DA Katmanı**: Veri erişilebilirliğini ve kalıcılığını sağlama
-- **Zero Knowledge Proofs**: Dosya içeriğini ifşa etmeden doğrulama
+3. **User Interface** (`/src/lib/`)
+   - `UploadInterface.svelte` - File upload and transfer UI
+   - `Inbox.svelte` - Received files management
+   - `CelestiaStatus.svelte` - Celestia network connection status
+   - `ZkStatus.svelte` - ZK circuit availability status
 
-## Teknoloji Yığını
+4. **Server** (`/src/server/`)
+   - `celestia-api.cjs` - Backend proxy for Celestia node communication
 
-- **Frontend**: Svelte, Vite
-- **Blockchain**: Solana (DevNet)
-- **DA Katmanı**: Celestia
-- **Depolama**: IPFS (InterPlanetary File System)
-- **ZK Proofs**: snarkjs
+## Prerequisites
 
-## Kurulum
+To run zkλ, you need the following components:
 
-### Gereksinimler
+- **Node.js** (v16+)
+- **IPFS Daemon** (local or remote)
+- **Celestia Light Node** (running on local machine or accessible endpoint)
+- **Modern Web Browser** (Chrome, Firefox, Edge, or Safari)
 
-- Node.js (v16+)
-- IPFS Daemon
-- Solana CLI (DevNet için)
-- Celestia Light Client (Opsiyonel)
+## Installation
 
-### Adımlar
+### 1. Clone the Repository
 
-1. Repoyu klonlayın:
+```bash
+git clone https://github.com/yourusername/zkl.git
+cd zkl
+```
+
+### 2. Install Dependencies
+
+```bash
+npm install
+```
+
+### 3. Configure Environment
+
+#### IPFS Configuration
+
+Ensure your IPFS daemon is running and accessible. Default configuration in `ipfs.js` points to:
+
+```javascript
+const IPFS_API_ENDPOINT = 'http://localhost:5001/api/v0';
+```
+
+#### Celestia Configuration
+
+You need a running Celestia light node. Set up your Celestia light node:
+
+```bash
+# Install Celestia (see full instructions in CELESTIA-SETUP.md)
+# Initialize light node
+celestia light init --p2p.network mocha
+
+# Get authorization token
+celestia light auth admin --p2p.network mocha
+
+# Start the light node
+celestia light start --p2p.network mocha --core.ip rpc-mocha.pops.one --gateway --gateway.addr 127.0.0.1 --gateway.port 26659 --rpc.addr 127.0.0.1
+```
+
+Update the configuration in `src/server/celestia-api.cjs`:
+
+```javascript
+const CELESTIA_NODE_URL = 'http://localhost:26658';
+const CELESTIA_AUTH_TOKEN = 'your-auth-token-here';
+```
+
+### 4. Start the API Proxy Server
+
+```bash
+npm run api
+```
+
+This starts the Celestia API proxy server on port 3080.
+
+### 5. Start the Development Server
+
+```bash
+npm run dev
+```
+
+The application will be available at `http://localhost:5173/` by default.
+
+## Advanced Configuration
+
+### Celestia Network Selection
+
+By default, zkλ connects to the Mocha testnet. To use a different network:
+
+1. Update the light node startup parameters:
+   ```bash
+   celestia light start --p2p.network <network-name>
    ```
-   git clone https://github.com/kullaniciadi/zkl-mvp-solana-devnet.git
-   cd zkl-mvp-solana-devnet
+
+2. Update Celestia authentication token in `celestia-api.cjs`
+
+### ZK Circuit Customization
+
+To modify the Zero Knowledge proving system:
+
+1. Replace the circuit files in `/public/circuits/`:
+   - `hash_check.wasm` - WebAssembly compiled circuit
+   - `hash_check_final.zkey` - Proving key
+   - `verification_key.json` - Verification key
+
+2. Update the circuit parameters in `src/lib/services/zk.js`
+
+### Docker Deployment
+
+A Docker Compose file is provided for containerized deployment:
+
+```yaml
+version: '3'
+
+services:
+  zkl-app:
+    build: .
+    ports:
+      - "5173:5173"
+    depends_on:
+      - celestia-light-node
+    environment:
+      - CELESTIA_NODE_URL=http://celestia-light-node:26659
+      - CELESTIA_AUTH_TOKEN=your-auth-token
+
+  celestia-light-node:
+    image: ghcr.io/celestiaorg/celestia-node:v0.21.5-mocha
+    restart: unless-stopped
+    user: "10001:10001"
+    volumes:
+      - ./celestia-light-data:/home/celestia
+    ports:
+      - "26659:26659"
+    command: >
+      /bin/bash -c "
+      if [ ! -f /home/celestia/.celestia-light-mocha/config.toml ]; then
+        celestia light init --p2p.network mocha;
+      fi;
+      celestia light start --core.ip consensus-validator.celestia-mocha.com --core.port 26657 --p2p.network mocha --gateway --gateway.addr 0.0.0.0 --gateway.port 26659 --rpc.addr 0.0.0.0
+      "
+```
+
+## System Requirements
+
+### Minimum Requirements
+
+- **CPU**: Dual-core processor (2+ GHz)
+- **RAM**: 4 GB
+- **Disk**: 10 GB free space
+- **Network**: Broadband connection (5+ Mbps)
+
+### Recommended Requirements
+
+- **CPU**: Quad-core processor (3+ GHz)
+- **RAM**: 8 GB
+- **Disk**: 50 GB free space (SSD preferred)
+- **Network**: High-speed connection (20+ Mbps)
+
+## Technical Implementation Details
+
+### File Transfer Flow
+
+When a file is uploaded and sent through zkλ, the following technical process occurs:
+
+1. **File Upload to IPFS**
+   ```javascript
+   const { cid, url } = await ipfsUpload(selectedFile);
    ```
 
-2. Bağımlılıkları yükleyin:
-   ```
-   npm install
-   ```
-
-3. IPFS daemon'ı başlatın:
-   ```
-   ipfs daemon
+2. **ZK Proof Generation**
+   ```javascript
+   const secret = `${selectedFile.name}-${selectedFile.size}-${nanoid()}`;
+   const verificationResult = await createFileVerification(cid.toString(), secret);
    ```
 
-4. Celestia Light Client'ı başlatın (Opsiyonel):
-   ```
-   celestia light start
-   ```
-
-5. Uygulamayı başlatın:
-   ```
-   npm run dev
+3. **Celestia DA Submission**
+   ```javascript
+   const celestiaData = await submitToCelestia(cid.toString());
    ```
 
-## Nasıl Çalışır?
+4. **Transfer Record Creation**
+   ```javascript
+   const transferRecord = {
+     id: transferId,
+     file: { name, size, type },
+     ipfs: { cid },
+     ipfsHash: cid.toString(),
+     celestia: celestiaData,
+     zkProof: zkProofData,
+     recipient,
+     sender,
+     message,
+     timestamp: currentTime
+   };
+   ```
 
-1. **Dosya Yükleme**: Kullanıcı bir dosya yükler, dosya IPFS'e yüklenir ve bir CID (Content Identifier) döndürülür.
-2. **Celestia DA**: IPFS CID'si, kalıcılık ve güvenilir erişilebilirlik için Celestia DA katmanına kaydedilir.
-3. **Zero Knowledge Proof**: Dosyanın bütünlüğünü ve varlığını gizlilik koruyarak doğrulayan bir ZK Proof oluşturulur.
-4. **Solana Transferi**: Dosyanın referansı ve ilgili metadata, alıcıya Solana blockchain üzerinden transfer edilir.
-5. **Doğrulama**: Alıcı, ZK Proof'u kullanarak dosyanın bütünlüğünü doğrulayabilir ve Celestia veya IPFS üzerinden dosyaya erişebilir.
+5. **Inbox Message Creation**
+   ```javascript
+   inboxStore.addMessage(recipient, inboxMessage);
+   ```
 
-## Güvenlik Özellikleri
+### Celestia Interaction Details
 
-- **Merkezi Olmayan Depolama**: IPFS ile güvenli ve merkezi olmayan dosya depolama.
-- **Blokzincir Doğrulama**: Solana üzerinde dosya transferlerinin doğrulanabilir kaydı.
-- **Veri Kalıcılığı**: Celestia DA katmanı sayesinde garantili veri erişilebilirliği.
-- **Gizlilik Koruyan Doğrulama**: Zero Knowledge Proofs ile dosya içeriğini açıklamadan bütünlük doğrulaması.
+The application interacts with Celestia through JSON-RPC calls:
 
-## Katkıda Bulunma
+```javascript
+// Example of blob submission
+const rpcRequest = {
+  jsonrpc: "2.0",
+  id: 1, 
+  method: "blob.Submit",
+  params: [
+    [
+      {
+        namespace: namespaceHex,
+        data: ipfsHash,
+        share_version: 0
+      }
+    ],
+    0.002 // Gas price
+  ]
+};
 
-Katkılarınızı bekliyoruz! Lütfen bir Pull Request göndermeden önce bir Issue açın ve değişikliklerinizi tartışın.
+const response = await axios.post(
+  CELESTIA_API_ENDPOINT,
+  rpcRequest,
+  {
+    headers: {
+      'Authorization': `Bearer ${CELESTIA_AUTH_TOKEN}`,
+      'Content-Type': 'application/json'
+    }
+  }
+);
+```
 
-## Lisans
+### ZK Circuit Execution
 
-Bu proje MIT lisansı altında lisanslanmıştır - daha fazla bilgi için [LICENSE](LICENSE) dosyasına bakın.
+The ZK proving system works by:
+
+1. Loading the circuit from WebAssembly:
+   ```javascript
+   const wasmBuffer = await fetch(CIRCUIT_WASM_URL).then(r => r.arrayBuffer());
+   const zkeyBuffer = await fetch(CIRCUIT_ZKEY_URL).then(r => r.arrayBuffer());
+   ```
+
+2. Creating inputs from the file hash:
+   ```javascript
+   const hashValue = calculateHashValue(ipfsHash);
+   const input = {
+     hash: hashValue.toString(),
+     secret: secretValue.toString()
+   };
+   ```
+
+3. Generating the proof:
+   ```javascript
+   const proof = await snarkjs.groth16.fullProve(input, circuit.wasm, circuit.zkey);
+   ```
+
+4. Verifying the proof:
+   ```javascript
+   const vKey = await loadVerificationKey();
+   const isValid = await snarkjs.groth16.verify(vKey, publicSignals, proof);
+   ```
+
+## Troubleshooting
+
+### Common Issues
+
+#### 1. Celestia Connection Errors
+
+**Problem**: Unable to connect to Celestia node
+
+**Solution**:
+- Check if your Celestia light node is running: `ps aux | grep celestia`
+- Verify the node is listening on the correct port: `lsof -i :26658`
+- Ensure your authorization token is correct
+- Restart the node and API proxy server
+
+#### 2. IPFS Connectivity Issues
+
+**Problem**: Files not uploading to IPFS
+
+**Solution**:
+- Verify your IPFS daemon is running: `ipfs id`
+- Check IPFS API accessibility: `curl -X POST http://localhost:5001/api/v0/id`
+- Ensure proper CORS configuration: `ipfs config --json API.HTTPHeaders.Access-Control-Allow-Origin '["*"]'`
+
+#### 3. ZK Circuit Loading Failures
+
+**Problem**: ZK circuit files not loading properly
+
+**Solution**:
+- Confirm circuit files exist in `/public/circuits/`
+- Check browser console for specific loading errors
+- Try using the browser on a device with more RAM
+- Clear browser cache and refresh
+
+## API Reference
+
+### Celestia Service API
+
+| Method | Description |
+|--------|-------------|
+| `checkCelestiaConnection()` | Tests connection to Celestia node |
+| `submitToCelestia(ipfsHash, namespace)` | Submits data to Celestia |
+| `getDataFromCelestia(height, namespace)` | Retrieves data from specified block |
+| `verifyCelestiaData(height, expectedIpfsHash, namespace)` | Verifies stored data |
+| `generateUniqueNamespace(seed)` | Creates unique namespace identifier |
+
+### Zero Knowledge API
+
+| Method | Description |
+|--------|-------------|
+| `generateProof(ipfsHash, secret)` | Creates ZK proof for file |
+| `verifyProof(proof, publicSignals, expectedIpfsHash)` | Verifies ZK proof |
+| `createFileVerification(ipfsHash, secret)` | Complete verification process |
+| `checkZkCircuitAvailability()` | Checks if ZK circuits are available |
+
+### IPFS Service API
+
+| Method | Description |
+|--------|-------------|
+| `checkIPFSConnection()` | Tests connection to IPFS node |
+| `ipfsUpload(file)` | Uploads file to IPFS |
+| `ipfsDownload(cid, filename)` | Downloads file from IPFS |
+| `ipfsGet(cid)` | Gets data from IPFS (small files) |
+| `ipfsGetMetadata(cid)` | Gets file metadata from IPFS |
+
+## Security Considerations
+
+zkλ implements several security measures:
+
+1. **Data Integrity**
+   - IPFS content-addressing ensures data has not been tampered with
+   - Celestia DA layer provides blockchain-level integrity guarantees
+
+2. **Cryptographic Verification**
+   - ZK proofs verify file properties without revealing content
+   - Celestia namespaces provide cryptographic isolation of data
+
+3. **Authentication**
+   - Wallet-based authentication for sender verification
+   - Celestia authorization tokens for node access
+
+4. **Privacy Protection**
+   - Zero Knowledge Proofs allow verification without data exposure
+   - Selective disclosure of file metadata
+
+## Future Development
+
+Planned technical improvements for zkλ:
+
+1. **Celestia Mainnet Support**
+   - Production deployment on Celestia mainnet
+   - Network parameter optimization for cost efficiency
+
+2. **Enhanced ZK Circuit Capabilities**
+   - Implement more complex ZK proving statements
+   - Add selective disclosure of file properties (size, type, creation date)
+
+3. **Cross-Chain Integration**
+   - Support for multiple blockchain backends beyond Celestia
+   - Bridge to Ethereum and other EVM-compatible chains
+
+4. **Performance Optimization**
+   - WebAssembly optimizations for ZK proof generation
+   - Parallel processing for large file uploads
+
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+## Acknowledgments
+
+- Celestia team for their data availability layer implementation
+- SnarkJS and circom for ZK circuit development tools
+- IPFS project for decentralized storage capabilities
+- Svelte framework for reactive UI components
+
+---
+
+## Development Process
+
+To contribute to the development of zkλ:
+
+```bash
+# Fork and clone the repository
+git clone https://github.com/yourusername/zkl.git
+
+# Create a feature branch
+git checkout -b feature/your-feature-name
+
+# Make changes and test
+npm run dev
+
+# Submit a pull request
+git push origin feature/your-feature-name
+```
+
+All contributions must include appropriate tests and documentation.
