@@ -646,7 +646,7 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 ---
 
 ## Development Process
-
+* There are places that are simulated to remain stable during certain phases of the demo.
 To contribute to the development of zkλ:
 
 ```bash
