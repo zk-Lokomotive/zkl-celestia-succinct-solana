@@ -1,34 +1,34 @@
 #!/bin/bash
 
-# SP1 programını Succinct Network'e yükleyen script
+# Script to upload the SP1 program to the Succinct Network
 
-# Gerekli ortam değişkenlerini kontrol et
+# Check required environment variables
 if [ -z "$SUCCINCT_API_KEY" ]; then
     if [ -f .env ]; then
-        echo "SUCCINCT_API_KEY ortam değişkeni bulunamadı, .env dosyasından yükleniyor..."
+        echo "SUCCINCT_API_KEY environment variable not found, loading from .env file..."
         export $(cat .env | grep -v "^#" | xargs)
     else
-        echo "HATA: SUCCINCT_API_KEY bulunamadı. Lütfen .env dosyası oluşturun veya ortam değişkenini ayarlayın."
+        echo "ERROR: SUCCINCT_API_KEY not found. Please create an .env file or set the environment variable."
         exit 1
     fi
 fi
 
 PROGRAM_ID=${PROGRAM_ID:-"zkl-file-verify-v1"}
 
-# cargo prove yüklü mü kontrol et
+# Check if cargo prove is installed
 if ! command -v cargo prove &> /dev/null; then
-    echo "HATA: 'cargo prove' komutu bulunamadı. Lütfen SP1 toolchain'i yükleyin."
-    echo "Kurulum için: curl -L https://sp1up.succinct.xyz | bash"
+    echo "ERROR: 'cargo prove' command not found. Please install the SP1 toolchain."
+    echo "For installation: curl -L https://sp1up.succinct.xyz | bash"
     exit 1
 fi
 
-# Docker çalışıyor mu kontrol et
+# Check if Docker is running
 if ! docker info &> /dev/null; then
-    echo "UYARI: Docker çalışmıyor veya erişilemiyor. Reproducible build için Docker gereklidir."
-    echo "Yine de devam etmek istiyor musunuz? (e/h)"
+    echo "WARNING: Docker is not running or accessible. Docker is required for reproducible builds."
+    echo "Do you want to continue anyway? (y/n)"
     read -r response
-    if [[ "$response" != "e" ]]; then
-        echo "İşlem iptal edildi."
+    if [[ "$response" != "y" ]]; then
+        echo "Operation cancelled."
         exit 1
     fi
     DOCKER_FLAG=""
@@ -36,23 +36,23 @@ else
     DOCKER_FLAG="--docker"
 fi
 
-echo "Programı derleniyor..."
+echo "Building the program..."
 cargo prove build $DOCKER_FLAG
 
 if [ $? -ne 0 ]; then
-    echo "HATA: Program derlenemedi."
+    echo "ERROR: Failed to build the program."
     exit 1
 fi
 
-echo "Program Succinct Network'e yükleniyor (program ID: $PROGRAM_ID)..."
+echo "Uploading the program to Succinct Network (program ID: $PROGRAM_ID)..."
 cargo prove upload --program-id "$PROGRAM_ID"
 
 if [ $? -ne 0 ]; then
-    echo "HATA: Program yüklenemedi."
+    echo "ERROR: Failed to upload the program."
     exit 1
 fi
 
-echo "Program başarıyla yüklendi!"
+echo "Program successfully uploaded!"
 echo "Program ID: $PROGRAM_ID"
 echo ""
-echo "Bu ID'yi src/lib/services/zk.js dosyasındaki FILE_VERIFY_PROGRAM_ID değişkenine eklemeyi unutmayın." 
+echo "Don't forget to add this ID to the FILE_VERIFY_PROGRAM_ID variable in src/lib/services/zk.js."
