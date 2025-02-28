@@ -3,7 +3,7 @@
 
 ## Demo
 
-
+[**📽️CLICK FOR DEMO📽️**](https://screen.studio/share/POPy8fDx)
 
 ## Technical Overview
 
@@ -16,7 +16,7 @@ zkλ is a cutting-edge decentralized file sharing application that combines seve
 
 This technological stack creates a powerful synergy between decentralized storage, data availability guarantees, and cryptographic verifiability while maintaining a seamless user experience.
 
-## Core Technologies
+## Core Technologies 🏗️
 
 ### Celestia Data Availability Layer
 
@@ -121,7 +121,7 @@ The zkλ architecture consists of several interconnected components:
 │                                                                        │
 ├────────────────┬─────────────────────────────┬───────────────────────┐ │
 │                │                             │                       │ │
-│  IPFS Node     │  Celestia Light Node       │  ZK Circuit Execution │ │
+│  IPFS Node     │  Celestia Light Node       │  zkVM Succinct │ │
 │  (Storage)     │  (Data Availability)        │  (Verification)       │ │
 │                │                             │                       │ │
 └────────────────┴─────────────────────────────┴───────────────────────┘ │
