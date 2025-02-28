@@ -29,6 +29,9 @@
   $: celestiaTxHash = $fileStore.celestiaTxHash;
   $: celestiaUrl = $fileStore.celestiaUrl;
   $: zkProofData = $fileStore.zkProofData;
+  // New reactive variables for Succinct
+  $: succinctTxHash = $fileStore.succinctTxHash;
+  $: succinctTxUrl = $fileStore.succinctTxUrl;
   $: isUsingCelestia = $fileStore.isUsingCelestia;
   $: isUsingZKP = $fileStore.isUsingZKP;
 
@@ -150,7 +153,7 @@
                   >
                   <span class="slider"></span>
                 </label>
-                <span>Zero Knowledge Verification</span>
+                <span>Succinct zkVM Verification</span>
               </div>
             </div>
 
@@ -207,6 +210,8 @@
           {celestiaTxHash}
           {celestiaUrl}
           {zkProofData}
+          {succinctTxHash}
+          {succinctTxUrl}
         />
       </div>
     </div>

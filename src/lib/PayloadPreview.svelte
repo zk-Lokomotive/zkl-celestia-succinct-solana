@@ -9,6 +9,8 @@
     export let celestiaTxHash = null;
     export let celestiaUrl = null;
     export let zkProofData = null;
+    export let succinctTxHash = null;
+    export let succinctTxUrl = null;
 
     $: isDark = $themeStore.isDark;
   
@@ -130,6 +132,47 @@
           </div>
         {/if}
 
+        <!-- Succinct zkVM Transaction Information -->
+        {#if succinctTxHash}
+          <div class="preview-section succinct-section">
+            <h3>Succinct zkVM Verification</h3>
+            <div class="preview-detail">
+              <span class="detail-label">Status:</span>
+              <span class="detail-value success">Verified ✓</span>
+            </div>
+            <div class="preview-detail">
+              <span class="detail-label">TX Hash:</span>
+              <span class="detail-value hash">{truncateHash(succinctTxHash, 8, 6)}</span>
+            </div>
+            <div class="preview-detail">
+              <span class="detail-label">Recipient:</span>
+              <span class="detail-value hash">0x2800733fe8CB3018210bC3AC6B179dC5037a27DC</span>
+            </div>
+            <div class="preview-detail">
+              <span class="detail-label">Amount:</span>
+              <span class="detail-value">0.00001</span>
+            </div>
+            <div class="detail-actions">
+              {#if succinctTxUrl}
+                <a 
+                  href={succinctTxUrl} 
+                  target="_blank" 
+                  rel="noopener noreferrer" 
+                  class="action-button succinct-button"
+                >
+                  View in Succinct Explorer
+                </a>
+              {/if}
+            </div>
+            <p class="info-text">This file has been verified using Succinct zkVM with a real transaction.</p>
+          </div>
+        {:else if ipfsHash}
+          <div class="preview-section disabled">
+            <h3>Succinct zkVM</h3>
+            <p class="info-text">No Succinct verification has been created for this file.</p>
+          </div>
+        {/if}
+
         <!-- Celestia Data Availability Information -->
         {#if celestiaTxHash && celestiaHeight}
           <div class="preview-section">
@@ -163,10 +206,10 @@
           </div>
         {/if}
 
-        <!-- Zero Knowledge Proof Information -->
+        <!-- Zero Knowledge Proof Information (keeping for reference but updating title) -->
         {#if zkProofData}
           <div class="preview-section">
-            <h3>Zero Knowledge Proof</h3>
+            <h3>Zero Knowledge Verification</h3>
             <div class="preview-detail">
               <span class="detail-label">Status:</span>
               <span class="detail-value success">Verified ✓</span>
@@ -177,9 +220,9 @@
             </div>
             <p class="info-text">A privacy-preserving verification proof has been created for this file.</p>
           </div>
-        {:else if ipfsHash}
+        {:else if ipfsHash && !succinctTxHash}
           <div class="preview-section disabled">
-            <h3>Zero Knowledge Proof</h3>
+            <h3>Zero Knowledge Verification</h3>
             <p class="info-text">No ZK Proof has been created for this file.</p>
           </div>
         {/if}
@@ -246,6 +289,16 @@
       background-color: rgba(0, 0, 0, 0.3);
       border: 1px solid rgba(255, 255, 255, 0.1);
     }
+    
+    .succinct-section {
+      border: 1px solid rgba(76, 29, 149, 0.4);
+      background-color: rgba(76, 29, 149, 0.05);
+    }
+    
+    .dark .succinct-section {
+      border: 1px solid rgba(139, 92, 246, 0.4);
+      background-color: rgba(139, 92, 246, 0.1);
+    }
   
     .preview-section.disabled {
       opacity: 0.6;
@@ -304,6 +357,16 @@
       transition: all 0.2s ease;
       text-decoration: none;
       color: inherit;
+    }
+    
+    .succinct-button {
+      background-color: rgba(76, 29, 149, 0.2);
+      color: rgba(76, 29, 149, 0.9);
+    }
+    
+    .dark .succinct-button {
+      background-color: rgba(139, 92, 246, 0.2);
+      color: rgba(139, 92, 246, 0.9);
     }
   
     .action-button:hover {

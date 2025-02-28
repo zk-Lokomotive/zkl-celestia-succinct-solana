@@ -21,9 +21,9 @@
       status = statusResult.circuitsAvailable ? 'available' : 'unavailable';
       networkInfo = statusResult.networkInfo;
       lastCheck = new Date(statusResult.timestamp || Date.now());
-      console.log(`Succinct Network status: ${status}`, statusResult);
+      console.log(`Succinct zkVM status: ${status}`, statusResult);
     } catch (error) {
-      console.error('Succinct Network check error:', error);
+      console.error('Succinct zkVM check error:', error);
       status = 'unavailable';
       lastCheck = new Date();
       networkInfo = null;
@@ -51,7 +51,7 @@
       class:unavailable={status === 'unavailable'}>
     </div>
     <div class="status-text">
-      <span class="status-label">Succinct Network</span>
+      <span class="status-label">Succinct zkVM</span>
       <span class="status-value">
         {#if status === 'checking'}
           Checking...

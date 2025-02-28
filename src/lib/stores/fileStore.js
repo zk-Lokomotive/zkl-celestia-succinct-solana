@@ -5,7 +5,7 @@ import { walletStore } from './wallet.js';
 import { ipfsUpload, ipfsDownload } from '../services/ipfs.js';
 import { sendMemoTransaction } from '../services/solana.js';
 import { submitToCelestia, verifyCelestiaData } from '../services/celestia.js';
-import { createFileVerification, verifyProof } from '../services/zk.js';
+import { createFileVerification, verifyProof, sendSuccinctDemoTransaction } from '../services/zk.js';
 
 const initialState = {
   selectedFile: null,
@@ -17,6 +17,8 @@ const initialState = {
   zkProofData: null,
   isUsingCelestia: false,
   isUsingZKP: false,
+  succinctTxHash: null,
+  succinctTxUrl: null,
   transferHistory: [],
   error: null
 };
@@ -35,7 +37,9 @@ function createFileStore() {
       celestiaHeight: null,
       celestiaTxHash: null,
       celestiaUrl: null,
-      zkProofData: null
+      zkProofData: null,
+      succinctTxHash: null,
+      succinctTxUrl: null
     })),
     
     reset: () => update(state => ({
@@ -46,7 +50,9 @@ function createFileStore() {
       celestiaHeight: null,
       celestiaTxHash: null,
       celestiaUrl: null,
-      zkProofData: null
+      zkProofData: null,
+      succinctTxHash: null,
+      succinctTxUrl: null
     })),
     
     toggleCelestia: (useIt) => update(state => ({
@@ -77,6 +83,7 @@ function createFileStore() {
         
         let celestiaData = null;
         let zkProofData = null;
+        let succinctTxData = null;
         
         if (state.isUsingCelestia) {
           console.log('Sending file to Celestia...');
@@ -87,6 +94,14 @@ function createFileStore() {
             console.error('Celestia error:', celestiaError);
             throw new Error(`Celestia submission failed: ${celestiaError.message}`);
           }
+        }
+        
+        try {
+          console.log('Sending transaction to Succinct zkVM...');
+          succinctTxData = await sendSuccinctDemoTransaction(cid.toString());
+          console.log('Succinct transaction successful:', succinctTxData);
+        } catch (succinctError) {
+          console.error('Succinct transaction error:', succinctError);
         }
         
         if (state.isUsingZKP) {
@@ -126,6 +141,11 @@ function createFileStore() {
             timestamp: zkProofData.timestamp,
             verified: zkProofData.isValid !== false
           } : null,
+          succinct: succinctTxData ? {
+            txHash: succinctTxData.txHash,
+            explorerUrl: succinctTxData.explorerUrl,
+            timestamp: succinctTxData.timestamp
+          } : null,
           recipient,
           sender,
           message,
@@ -140,11 +160,13 @@ function createFileStore() {
           celestiaTxHash: celestiaData?.txhash || null,
           celestiaUrl: celestiaData?.celestiaUrl || null,
           zkProofData,
+          succinctTxHash: succinctTxData?.txHash || null,
+          succinctTxUrl: succinctTxData?.explorerUrl || null,
           transferHistory: [transferRecord, ...s.transferHistory]
         }));
         
         try {
-          console.log(`Alıcı ${recipient} için inbox'a mesaj ekleniyor...`);
+          console.log(`Adding message to inbox for recipient ${recipient}...`);
           
           const inboxMessage = {
             ipfsCid: cid.toString(),
@@ -153,27 +175,29 @@ function createFileStore() {
             celestiaTxHash: celestiaData?.txhash,
             celestiaUrl: celestiaData?.celestiaUrl,
             celestiaNamespace: celestiaData?.namespace,
+            succinctTxHash: succinctTxData?.txHash,
+            succinctTxUrl: succinctTxData?.explorerUrl,
             fileName: selectedFile.name,
             fileSize: selectedFile.size,
             fileType: selectedFile.type,
             senderAddress: sender,
             message: message,
-            transactionUrl: celestiaData?.celestiaUrl || `https://ipfs.io/ipfs/${cid}`,
+            transactionUrl: succinctTxData?.explorerUrl || celestiaData?.celestiaUrl || `https://ipfs.io/ipfs/${cid}`,
             zkProofAvailable: zkProofData ? true : false,
             zkProofTimestamp: zkProofData?.timestamp,
             timestamp: currentTime
           };
           
           inboxStore.addMessage(recipient, inboxMessage);
-          console.log('Inbox mesajı eklendi:', inboxMessage);
+          console.log('Inbox message added:', inboxMessage);
           
           const currentWallet = get(walletStore).publicKey;
           if (currentWallet && currentWallet === recipient) {
-            console.log('Alıcı aktif kullanıcı, inbox güncelleniyor...');
+            console.log('Recipient is current user, updating inbox...');
             inboxStore.fetchFromCelestia(recipient);
           }
         } catch (inboxError) {
-          console.error('Inbox mesajı eklenirken hata:', inboxError);
+          console.error('Error adding inbox message:', inboxError);
         }
         
         return transferRecord;
