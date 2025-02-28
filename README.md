@@ -1,4 +1,4 @@
-# zkλ: Decentralized Cryptographic File Sharing with Celestia DA and Zero Knowledge Proofs
+# zkλ: Decentralized Cryptographic File Sharing with Celestia DA and Succinct zkVM Proofs
 
 
 ## Demo
