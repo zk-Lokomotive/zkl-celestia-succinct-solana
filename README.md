@@ -2,9 +2,10 @@
   <img src="https://zk-lokomotive.xyz/zkl.svg" /> <br />
   <a href="https://zk-lokomotive.xyz">[[ Website ]]</a> • <a href="https://docs.zk-lokomotive.xyz/">[[ Docs ]]</a> • <a href="https://x.com/zkLokomotive">[[ X/Twitter ]]</a>
 </p>
-![zk-lokomotive](https://github.com/user-attachments/assets/3ebd0b62-7994-4ace-8b14-d3f86a3201ce)
 
 # zkλ: Fully Private and Secure File Sharing with Celestia DA and Succinct zkVM Proofs
+![intro](https://github.com/user-attachments/assets/6fd09bcf-46ef-4c30-a117-861d3f8be6a5)
+
 
 ## Demo
 
