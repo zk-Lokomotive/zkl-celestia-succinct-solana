@@ -1,5 +1,9 @@
-# zkλ: Fully Private and Secure File Sharing with Celestia DA and Succinct zkVM Proofs
+<p align="center">
+  <img src="https://zk-lokomotive.xyz/zkl.svg" /> <br />
+  <a href="https://zk-lokomotive.xyz">[[ Website ]]</a> • <a href="https://docs.zk-lokomotive.xyz/">[[ Docs ]]</a> • <a href="https://x.com/zkLokomotive">[[ X/Twitter ]]</a>
+</p>
 
+# zkλ: Fully Private and Secure File Sharing with Celestia DA and Succinct zkVM Proofs
 
 ## Demo
 
@@ -659,4 +663,3 @@ npm run dev
 git push origin feature/your-feature-name
 ```
 
-All contributions must include appropriate tests and documentation.
