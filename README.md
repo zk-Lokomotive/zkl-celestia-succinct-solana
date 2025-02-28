@@ -2,6 +2,7 @@
   <img src="https://zk-lokomotive.xyz/zkl.svg" /> <br />
   <a href="https://zk-lokomotive.xyz">[[ Website ]]</a> • <a href="https://docs.zk-lokomotive.xyz/">[[ Docs ]]</a> • <a href="https://x.com/zkLokomotive">[[ X/Twitter ]]</a>
 </p>
+![zk-lokomotive](https://github.com/user-attachments/assets/3ebd0b62-7994-4ace-8b14-d3f86a3201ce)
 
 # zkλ: Fully Private and Secure File Sharing with Celestia DA and Succinct zkVM Proofs
 
@@ -27,6 +28,7 @@ Reactive and efficient user interface
 
 
 ## Core Technologies 🏗️
+![Solution](https://github.com/user-attachments/assets/60399f5f-19bd-472f-9798-cdadf664921d)
 
 ### Celestia Data Availability Layer
 
@@ -365,7 +367,7 @@ By default, zkλ connects to the Mocha testnet. To use a different network:
 
 2. Update Celestia authentication token in `celestia-api.cjs`
 
-### ZK Circuit Customization
+### ZK Customization (Before Succinct)
 
 To modify the Zero Knowledge proving system:
 
@@ -668,4 +670,5 @@ npm run dev
 # Submit a pull request
 git push origin feature/your-feature-name
 ```
+![Thank You](https://github.com/user-attachments/assets/9f3479ab-63e3-4a0b-b92a-f8c8cc85da3f)
 
