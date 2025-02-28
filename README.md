@@ -9,16 +9,22 @@
 
 [**📽️CLICK FOR DEMO📽️**](https://screen.studio/share/POPy8fDx)
 
-## Technical Overview
+## Technical Overview 🛠️
 
-zkλ is a cutting-edge decentralized file sharing application that combines several advanced cryptographic primitives and blockchain technologies to provide secure, private, and verifiable file transfers. The application leverages a multi-layered architecture comprising:
+zkλ is a decentralized multıchaın file sharing application that combines several advanced cryptographic primitives and blockchain technologies to provide Fully secure, private, and verifiable file transfers. The application leverages a multi-layered architecture comprising:
 
-1. **InterPlanetary File System (IPFS)** - Distributed content-addressable storage
-2. **Celestia Data Availability (DA) Layer** - Guaranteeing blockchain-level data persistence
-3. **Zero Knowledge Proofs (ZK)** - Privacy-preserving verification mechanisms
-4. **Svelte Frontend** - Reactive and efficient user interface
+* InterPlanetary File System (IPFS) - 
+Distributed content-addressable storage
 
-This technological stack creates a powerful synergy between decentralized storage, data availability guarantees, and cryptographic verifiability while maintaining a seamless user experience.
+* Celestia Data Availability (DA) Layer - 
+Guaranteeing blockchain-level data persistence
+
+* Zero Knowledge Proofs (succınct) - 
+Privacy-preserving verification mechanisms
+
+* Frontend (Svelte) - 
+Reactive and efficient user interface
+
 
 ## Core Technologies 🏗️
 
