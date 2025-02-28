@@ -1,34 +1,34 @@
-# Celestia Light Node Kurulumu
+# Celestia Light Node Setup
 
-Bu rehber, ZKL uygulaması için bir Celestia Light Node kurulumunu açıklamaktadır. Bu rehber, Tarayıcı tabanlı uygulamanızı gerçek bir Celestia ağına bağlayabilmeniz için gerekli adımları içerir.
+This guide explains the setup of a Celestia Light Node for the ZKL application. This guide includes the necessary steps for you to connect your browser-based application to a real Celestia network.
 
-## Gereksinimler
+## Requirements
 
-- Linux veya macOS işletim sistemi
-- En az 2 GB RAM
-- En az 100 GB disk alanı
-- Go 1.21+ kurulu olmalı
+- Linux or macOS operating system
+- At least 2 GB RAM
+- At least 100 GB disk space
+- Go 1.21+ installed
 
-## Kurulum Adımları
+## Installation Steps
 
-### 1. Bağımlılıkların Kurulması
+### 1. Installing Dependencies
 
-**Ubuntu/Debian için:**
+**For Ubuntu/Debian**
 
 ```bash
 sudo apt-get update
 sudo apt-get install -y curl git build-essential
 ```
 
-**macOS için:**
+**For macOS:**
 
 ```bash
 brew install curl git
 ```
 
-### 2. Go Kurulumu
+### 2. Installing Go
 
-Go'nun son sürümünü kurun:
+Install the latest version of Go:
 
 ```bash
 wget https://go.dev/dl/go1.21.6.linux-amd64.tar.gz
@@ -36,121 +36,121 @@ sudo rm -rf /usr/local/go
 sudo tar -C /usr/local -xzf go1.21.6.linux-amd64.tar.gz
 ```
 
-PATH değişkenini güncelleyin:
+Update the PATH variable:
 
 ```bash
 echo "export PATH=$PATH:/usr/local/go/bin:$HOME/go/bin" >> $HOME/.profile
 source $HOME/.profile
 ```
 
-Go sürümünü kontrol edin:
+Check Go version:
 
 ```bash
 go version
 ```
 
-### 3. Celestia Node Reposunu Klonlama
+### 3. Cloning the Celestia Node Repository
 
 ```bash
 git clone https://github.com/celestiaorg/celestia-node.git
 cd celestia-node
 ```
 
-En son sürümü kontrol edin:
+Check the latest version:
 
 ```bash
 git checkout tags/v0.12.4
 ```
 
-### 4. Node'u İnşa Etme
+### 4. Building the Node
 
 ```bash
 make build
 make install
 ```
 
-Kurulumu doğrulayın:
+Verify the installation:
 
 ```bash
 celestia version
 ```
 
-### 5. Light Node Başlatma
+### 5. Starting the Light Node
 
-#### 5.1 Light Node Başlatma (Mocha Testnet)
+#### 5.1 Starting the Light Node (Mocha Testnet)
 
-Önce node'u başlatın:
+First, initialize the node:
 
 ```bash
 celestia light init --p2p.network mocha
 ```
 
-Bu komut bir yetkilendirme anahtarı oluşturacaktır. Bu anahtarı not edin:
+This command will generate an authorization key. Note this key:
 
 ```bash
 celestia light auth admin --p2p.network mocha
 ```
 
-Çıktıyı not alın, aşağıdaki gibi görünecek:
+Note the output, it will look like this:
 ```
 eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJBbGxvdyI6WyJwdWJsaWMiLCJyZWFkIiwid3JpdGUiLCJhZG1pbiJdfQ.ayarlRig-VW15nL05_mmj5rHUmlouFF25xevip2yrr0
 ```
 
-#### 5.2 Light Node'u Hizmet Olarak Başlatma
+#### 5.2 Starting the Light Node as a Service
 
-Aşağıdaki komutu kullanarak light node'u başlatın:
+Start the light node using the following command:
 
 ```bash
 celestia light start --p2p.network mocha --core.ip rpc-mocha.pops.one --gateway --gateway.addr 127.0.0.1 --gateway.port 26659 --rpc.addr 127.0.0.1
 ```
 
-veya arka planda çalıştırmak için:
+or to run in the background:
 
 ```bash
 nohup celestia light start --p2p.network mocha --core.ip rpc-mocha.pops.one --gateway --gateway.addr 127.0.0.1 --gateway.port 26659 --rpc.addr 127.0.0.1 > celestia.log 2>&1 &
 ```
 
-## 6. ZKL Uygulamasını Yapılandırma
+## 6. Configuring the ZKL Application
 
-`src/lib/services/celestia.js` dosyasında, aşağıdaki yapılandırmayı güncelleyin:
+In the `src/lib/services/celestia.js` file, update the following configuration:
 
 ```javascript
 // Celestia light client API endpoint
 const CELESTIA_API_ENDPOINT = 'http://localhost:26659';
-const CELESTIA_AUTH_TOKEN = 'YUKARIDA_OLUŞTURULAN_YETKILENDIRME_ANAHTARI';
+const CELESTIA_AUTH_TOKEN = 'AUTHORIZATION_KEY_GENERATED_ABOVE';
 ```
 
-## Sorun Giderme
+## Troubleshooting
 
-### Node Bağlantı Hatası
+### Node Connection Error
 
-Uygulamanız aşağıdaki hatayı verirse:
+If your application gives the following error:
 
 ```
 Celestia node connection error: Network Error
 ```
 
-Şu adımları deneyin:
+Try these steps:
 
-1. **Celestia Node'un Çalıştığını Kontrol Edin**
+1. **Check if the Celestia Node is Running**
 
 ```bash
 ps aux | grep celestia
 ```
 
-2. **Node'un Doğru Portta Dinlediğini Kontrol Edin**
+2. **Check if the Node is Listening on the Correct Port**
 
 ```bash
 netstat -tuln | grep 26659
 ```
 
-3. **Manuel olarak API'yi Test Edin**
+3. **Test the API Manually**
 
 ```bash
-curl -X GET http://localhost:26659/header/status -H "Authorization: Bearer YETKILENDIRME_ANAHTARINIZ" -v
+curl -X GET http://localhost:26659/header/status -H "Authorization: Bearer YOUR_AUTHORIZATION_KEY" -v
 ```
 
-4. **Node Loglarını Kontrol Edin**
+4. **Check Node Logs**
 
 ```bash
 tail -f celestia.log
@@ -163,18 +163,18 @@ pkill celestia
 nohup celestia light start --p2p.network mocha --core.ip rpc-mocha.pops.one --gateway --gateway.addr 127.0.0.1 --gateway.port 26659 --rpc.addr 127.0.0.1 > celestia.log 2>&1 &
 ```
 
-6. **Testnet Sorunları**
+6. **Testnet Issues**
 
-Mocha testnet bazen sorunlar yaşayabilir. Alternatif olarak başka bir testnet deneyebilirsiniz veya ana ağı kullanabilirsiniz.
+The Mocha testnet may experience issues occasionally. Alternatively, you can try another testnet or use the main network.
 
-## Geliştirme vs. Üretim
+## Development vs. Production
 
-- Geliştirme için Mocha testnet önerilir.
-- Üretim için, Celestia ana ağını kullanmanız ve node'unuzu `--p2p.network celestia` ile yapılandırmanız gerekir.
+- Mocha testnet is recommended for development.
+- For production, you should use the Celestia main network and configure your node with `--p2p.network celestia`.
 
-## Kaynaklar
+## Resources
 
-- [Celestia Resmi Belgeler](https://docs.celestia.org/)
-- [GitHub Reposu](https://github.com/celestiaorg/celestia-node)
-- [Discord Topluluğu](https://discord.com/invite/YsnTPcSfWQ)
-- [Celestia Light Node Dokümantasyonu](https://docs.celestia.org/nodes/light-node) 
+- [Celestia Official Documentation](https://docs.celestia.org/)
+- [GitHub Repository](https://github.com/celestiaorg/celestia-node)
+- [Discord Community](https://discord.com/invite/YsnTPcSfWQ)
+- [Celestia Light Node Documentation](https://docs.celestia.org/nodes/light-node) 

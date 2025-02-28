@@ -32,25 +32,74 @@ Implementation details:
 - The system uses the `blob.Submit` and `blob.GetAll` methods of the Celestia API
 - Celestia transactions are viewable through the integrated explorer at `https://explorer.consensus-celestia.app/`
 
-### Zero Knowledge Proofs
+### Zero Knowledge Proofs with Succinct SP1
 
-The ZK integration in zkλ serves multiple critical functions:
+zkλ uses Succinct's SP1 zkVM for Zero Knowledge proof generation, providing several critical advantages:
 
 - **Privacy-Preserving Verification**: Allows proving the integrity and existence of a file without revealing its contents
 - **Selective Disclosure**: Enables users to prove specific properties about files without revealing all data
 - **Mathematical Certainty**: Provides cryptographic guarantees rather than trust-based assurances
+- **Performance and Scalability**: Leverages the distributed Succinct Prover Network for efficient proof generation
 
 Technical implementation:
-- Uses `snarkjs` library for ZK circuit execution
-- Implements `groth16` proving system for efficiency and security
-- Includes custom circuits located in `/public/circuits/`
-- Handles circuit execution in the browser through WebAssembly
+- Uses Succinct SP1 zkVM for efficient Zero Knowledge proof generation
+- Implements a custom Rust program compiled to SP1's target architecture
+- Proof generation is distributed across the Succinct Prover Network
+- API proxy provides seamless integration with the zkVM's proof system
 
 The ZK proving process follows these steps:
 1. Calculate a numerical representation of the IPFS CID
-2. Generate a witness using the file hash and a secret
-3. Create a ZK proof using the precompiled circuit
-4. Store verification data alongside the file reference
+2. Generate a commitment using the file hash and a secret
+3. Submit the proof generation task to Succinct Prover Network
+4. Retrieve and verify the proof
+5. Store verification data alongside the file reference
+
+#### Succinct SP1 Implementation Details
+
+Succinct SP1 is a zero-knowledge virtual machine (zkVM) that enables proving arbitrary computations with high efficiency. In our implementation:
+
+1. **Custom Rust Circuit**: We've implemented a specialized circuit in Rust that runs on SP1's zkVM architecture, specifically designed to verify IPFS file hashes while preserving privacy.
+
+2. **Distributed Proof Generation**: Rather than computing proofs locally (which can be resource-intensive), we leverage the Succinct Prover Network, distributing the cryptographic workload across specialized provers.
+
+3. **Verifiable Proofs**: The system generates cryptographic proofs that can be verified by anyone without revealing the underlying data, enabling trustless verification of file integrity.
+
+4. **Integration Architecture**: Our integration uses a modular approach:
+   - The custom SP1 program in the `sp1-programs/zkl-file-verify` directory
+   - A frontend service layer that interfaces with the Succinct Prover Network
+   - A verification system that validates returned proofs
+
+#### Why Succinct SP1 is Critical for zkλ
+
+Succinct SP1 addresses several fundamental challenges in decentralized file sharing:
+
+| Challenge | Traditional Solution | Succinct SP1 Solution |
+|-----------|----------------------|------------------------|
+| **Privacy** | Hash verification reveals file existence | Zero-knowledge proofs verify without revealing data |
+| **Verification Cost** | Full data download required for verification | Proof verification is lightweight and data-independent |
+| **Trust Minimization** | Reliance on trusted third parties | Mathematical verification without trusted intermediaries |
+| **Scalability** | Computation bound by local resources | Distributed proving across specialized network |
+| **Programmability** | Limited verification capabilities | Custom verification logic in Rust |
+| **Integration** | Complex cryptographic implementation | Developer-friendly Rust API |
+
+The Succinct SP1 integration enables zkλ to offer several unique capabilities:
+
+- **Selective Attribute Verification**: Prove file properties (size, type, creation date) without revealing the file
+- **Owner Authentication**: Verify a user knows the file secret without revealing the secret itself
+- **Tamper Evidence**: Mathematical proof that a file hasn't been modified since upload
+- **Efficient Verification**: Proofs can be verified on-chain or in browser with minimal resources
+
+#### Comparison of Verification Methods
+
+| Feature | Hash-Based Verification | Centralized Authority | Succinct SP1 ZK Proofs |
+|---------|------------------------|----------------------|------------------------|
+| **Privacy** | ❌ Reveals existence | ⚠️ Depends on authority | ✅ Full privacy preservation |
+| **Decentralization** | ✅ Fully decentralized | ❌ Centralized trust point | ✅ Decentralized verification |
+| **Resource Requirements** | ⚠️ Moderate | ✅ Low | ✅ Low for verification |
+| **Tamper Evidence** | ✅ Strong | ⚠️ Depends on authority | ✅ Cryptographic guarantee |
+| **Selective Disclosure** | ❌ Not possible | ⚠️ Limited | ✅ Programmable disclosure |
+| **On-chain Compatibility** | ⚠️ Limited | ❌ Poor | ✅ Optimized for blockchain |
+| **User Experience** | ⚠️ Technical | ✅ Simple | ✅ Abstracted complexity |
 
 ## System Architecture
 
@@ -158,6 +207,28 @@ Update the configuration in `src/server/celestia-api.cjs`:
 const CELESTIA_NODE_URL = 'http://localhost:26658';
 const CELESTIA_AUTH_TOKEN = 'your-auth-token-here';
 ```
+
+#### Succinct SP1 Configuration
+
+To enable Zero Knowledge proofs functionality, you need to:
+
+1. Install SP1 toolchain:
+   ```bash
+   curl -L https://sp1up.succinct.xyz | bash
+   sp1up
+   ```
+
+2. Set up your Succinct Prover Network API key in `.env`:
+   ```
+   SUCCINCT_API_KEY=your-testnet-api-key
+   ```
+
+3. Configure the program ID in `src/lib/services/zk.js`:
+   ```javascript
+   const FILE_VERIFY_PROGRAM_ID = 'your-uploaded-program-id';
+   ```
+
+4. For development and testing, you can use the provided default program ID, which is already uploaded to the Succinct Prover Network.
 
 ### 4. Start the API Proxy Server
 

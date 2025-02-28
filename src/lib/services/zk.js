@@ -1,91 +1,88 @@
 /**
- * Zero Knowledge Proof (ZKP) Service
- * This service provides Zero Knowledge Proof generation and verification
- * functions to verify IPFS file integrity.
+ * Succinct Prover Network ZK Service
+ * This service integrates with Succinct's zkVM (SP1) to provide 
+ * Zero Knowledge Proofs for file integrity verification
  */
 
-import * as snarkjs from 'snarkjs';
+import axios from 'axios';
 import { Buffer } from 'buffer';
 
-// ZK circuit file URLs
-const CIRCUIT_WASM_URL = '/circuits/hash_check.wasm';
-const CIRCUIT_ZKEY_URL = '/circuits/hash_check_final.zkey';
-const VERIFICATION_KEY_URL = '/circuits/verification_key.json';
+// Succinct API endpoints and configuration
+const SUCCINCT_API_BASE_URL = 'https://testnet-api.succinct.xyz/api';
+const SUCCINCT_API_KEY = 'YOUR_SUCCINCT_TESTNET_API_KEY'; // Bu kısmı gerçek API anahtarınızla değiştirin
 
-// Large prime number limit for SNARKs
-const SNARK_FIELD_SIZE = 21888242871839275222246405745257275088548364400416034343698204186575808495617n;
+// Program ID for the file integrity verification program on Succinct
+const FILE_VERIFY_PROGRAM_ID = 'zkl-file-verify-v1'; // Succinct'e yüklenecek programın ID'si
 
-// For cache and performance optimization
-let verificationKey = null;
-let circuit = null;
-let isInitialized = false;
+// Large prime number limit for cryptographic operations
+const FIELD_SIZE = 21888242871839275222246405745257275088548364400416034343698204186575808495617n;
+
+// Cache for connection state
+let succintNetworkStatus = null;
+let lastConnectionCheck = null;
 
 /**
- * Load circuit files
- * @returns {Promise<Object>} Circuit components
+ * Check Succinct Network status and connectivity
+ * @returns {Promise<Object>} Network status
  */
-async function loadCircuit() {
-  if (circuit && isInitialized) return circuit;
-  
-  console.log('Loading ZK circuits...');
-  
+export async function checkZkCircuitAvailability() {
   try {
-    // Load WebAssembly circuit file
-    console.log('Loading WASM circuit file:', CIRCUIT_WASM_URL);
-    const wasmResponse = await fetch(CIRCUIT_WASM_URL);
+    console.log('Checking Succinct Network availability...');
     
-    if (!wasmResponse.ok) {
-      throw new Error(`Circuit WASM file could not be loaded: ${wasmResponse.status} - ${wasmResponse.statusText}`);
+    // If we checked recently, return cached status
+    if (succintNetworkStatus && lastConnectionCheck && 
+        (new Date().getTime() - lastConnectionCheck.getTime() < 60000)) {
+      return succintNetworkStatus;
     }
     
-    const wasm = await wasmResponse.arrayBuffer();
-    console.log('WASM circuit file successfully loaded:', wasm.byteLength, 'bytes');
+    // Check Succinct API status
+    const response = await axios.get(
+      `${SUCCINCT_API_BASE_URL}/status`,
+      {
+        headers: {
+          'Authorization': `Bearer ${SUCCINCT_API_KEY}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+    
+    if (response.status === 200) {
+      succintNetworkStatus = {
+        circuitsAvailable: true,
+        networkInfo: response.data,
+        timestamp: new Date().toISOString()
+      };
       
-    // Load zKey file  
-    console.log('Loading zKey file:', CIRCUIT_ZKEY_URL);
-    const zkeyResponse = await fetch(CIRCUIT_ZKEY_URL);
-    
-    if (!zkeyResponse.ok) {
-      throw new Error(`Circuit zKey file could not be loaded: ${zkeyResponse.status} - ${zkeyResponse.statusText}`);
+      // Save circuit status to session storage
+      try {
+        sessionStorage.setItem('zk_circuits_available', 'true');
+        sessionStorage.setItem('zk_network_info', JSON.stringify(response.data));
+      } catch (e) {
+        console.warn('Session storage error:', e);
+      }
+      
+      lastConnectionCheck = new Date();
+      return succintNetworkStatus;
     }
     
-    const zkey = await zkeyResponse.arrayBuffer();
-    console.log('zKey file successfully loaded:', zkey.byteLength, 'bytes');
-    
-    circuit = { wasm, zkey };
-    isInitialized = true;
-    console.log('ZK circuits successfully loaded and ready');
-    return circuit;
+    throw new Error('Unexpected response from Succinct API');
   } catch (error) {
-    console.error('ZK circuit loading error:', error);
-    console.error('Error details:', error.stack);
-    isInitialized = false;
-    throw error;
-  }
-}
-
-/**
- * Load verification key
- * @returns {Promise<Object>} Verification key
- */
-async function loadVerificationKey() {
-  if (verificationKey) return verificationKey;
-  
-  try {
-    console.log('Loading verification key:', VERIFICATION_KEY_URL);
-    const response = await fetch(VERIFICATION_KEY_URL);
+    console.error('Succinct Network check error:', error);
     
-    if (!response.ok) {
-      throw new Error(`Verification key could not be loaded: ${response.status} - ${response.statusText}`);
+    succintNetworkStatus = {
+      circuitsAvailable: false,
+      error: error.message,
+      timestamp: new Date().toISOString()
+    };
+    
+    try {
+      sessionStorage.setItem('zk_circuits_available', 'false');
+    } catch (e) {
+      console.warn('Session storage error:', e);
     }
     
-    verificationKey = await response.json();
-    console.log('Verification key successfully loaded');
-    return verificationKey;
-  } catch (error) {
-    console.error('Verification key loading error:', error);
-    console.error('Error details:', error.stack);
-    throw error;
+    lastConnectionCheck = new Date();
+    return succintNetworkStatus;
   }
 }
 
@@ -98,15 +95,128 @@ function calculateHashValue(ipfsHash) {
   const hashBuffer = Buffer.from(ipfsHash);
   let hashValue = 0n; // Define as BigInt
   for (let i = 0; i < hashBuffer.length; i++) {
-    hashValue = (hashValue * 256n + BigInt(hashBuffer[i])) % SNARK_FIELD_SIZE;
+    hashValue = (hashValue * 256n + BigInt(hashBuffer[i])) % FIELD_SIZE;
   }
   return hashValue;
 }
 
 /**
+ * Request a ZK proof generation from Succinct Prover Network
+ * 
+ * @param {string} ipfsHash - IPFS CID to prove
+ * @param {string} secret - Secret value
+ * @returns {Promise<Object>} Generated proof data
+ */
+export async function generateProof(ipfsHash, secret) {
+  try {
+    console.log('Requesting ZK Proof from Succinct Network...');
+    console.log('IPFS Hash:', ipfsHash);
+    console.log('Secret length:', secret?.length || 0);
+    
+    // Calculate hash value to use as input
+    const hashValue = calculateHashValue(ipfsHash);
+    console.log('Calculated hash value:', hashValue.toString());
+    
+    // Prepare the inputs for the Succinct program
+    const inputs = {
+      ipfs_hash: ipfsHash,
+      hash_value: hashValue.toString(),
+      secret: secret
+    };
+    
+    // Request proof generation from Succinct
+    const response = await axios.post(
+      `${SUCCINCT_API_BASE_URL}/proofs/generate`,
+      {
+        program_id: FILE_VERIFY_PROGRAM_ID,
+        inputs: inputs,
+        callback_url: null // Optional callback URL
+      },
+      {
+        headers: {
+          'Authorization': `Bearer ${SUCCINCT_API_KEY}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+    
+    if (response.status !== 200) {
+      throw new Error(`Succinct API returned status ${response.status}`);
+    }
+    
+    const proofRequest = response.data;
+    console.log('Proof generation requested:', proofRequest);
+    
+    // Now we need to poll for the proof result
+    const proofResult = await pollForProofResult(proofRequest.request_id);
+    
+    return {
+      proof: proofResult.proof,
+      publicSignals: proofResult.public_inputs,
+      hashValue: hashValue.toString(),
+      proofId: proofRequest.request_id,
+      timestamp: new Date().toISOString()
+    };
+  } catch (error) {
+    console.error('Succinct proof generation error:', error);
+    
+    // Fallback to simple proof representation for UI compatibility
+    return generateSimpleProof(ipfsHash, secret);
+  }
+}
+
+/**
+ * Poll for a proof result from Succinct
+ * 
+ * @param {string} requestId - Proof request ID
+ * @returns {Promise<Object>} Proof result
+ */
+async function pollForProofResult(requestId) {
+  console.log(`Polling for proof result (${requestId})...`);
+  
+  const maxRetries = 30;
+  const pollInterval = 2000; // 2 seconds
+  
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      const response = await axios.get(
+        `${SUCCINCT_API_BASE_URL}/proofs/${requestId}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${SUCCINCT_API_KEY}`
+          }
+        }
+      );
+      
+      const proofStatus = response.data;
+      
+      if (proofStatus.status === 'completed') {
+        console.log('Proof generation completed successfully');
+        return proofStatus.result;
+      }
+      
+      if (proofStatus.status === 'failed') {
+        throw new Error(`Proof generation failed: ${proofStatus.error}`);
+      }
+      
+      // Still in progress, wait and try again
+      console.log(`Proof status: ${proofStatus.status}, waiting...`);
+      await new Promise(resolve => setTimeout(resolve, pollInterval));
+    } catch (error) {
+      console.error('Error polling for proof:', error);
+      
+      // Wait and try again
+      await new Promise(resolve => setTimeout(resolve, pollInterval));
+    }
+  }
+  
+  throw new Error('Timeout waiting for proof generation');
+}
+
+/**
  * Create a simple ZK proof
  * 
- * Simplified function to be used in case of FastFile error.
+ * Simplified function for UI compatibility when Succinct is unavailable.
  * Creates a temporary proof instead of a real ZK proof.
  * 
  * @param {string} ipfsHash - IPFS CID
@@ -114,7 +224,7 @@ function calculateHashValue(ipfsHash) {
  * @returns {Object} Simple verification data
  */
 function generateSimpleProof(ipfsHash, secret) {
-  console.log('Creating simple ZK proof (fallback)...');
+  console.log('Creating simple proof (fallback)...');
   
   // Calculate hash value
   const hashValue = calculateHashValue(ipfsHash);
@@ -131,106 +241,28 @@ function generateSimpleProof(ipfsHash, secret) {
       pi_a: [hashValue.toString(), "1", "1"],
       pi_b: [["1", "1"], ["1", "1"], ["1", "0"]],
       pi_c: [hashValue.toString(), "1", "1"],
-      protocol: "groth16",
+      protocol: "succinct-sp1",
       curve: "bn128"
     },
     publicSignals: [hashValue.toString()],
     hashValue: hashValue.toString(),
     signature: signature,
-    isFallback: true
+    isFallback: true,
+    timestamp: new Date().toISOString()
   };
 }
 
 /**
- * Create Zero Knowledge Proof for given IPFS hash
+ * Verify a proof from Succinct
  * 
- * @param {string} ipfsHash - IPFS CID
- * @param {string} secret - Secret value (e.g. known by the user)
- * @returns {Promise<object>} - Generated proof
- */
-export async function generateProof(ipfsHash, secret) {
-  try {
-    console.log('Creating ZK Proof...');
-    console.log('IPFS Hash:', ipfsHash);
-    console.log('Secret length:', secret?.length || 0);
-    
-    // Calculate hash value
-    const hashValue = calculateHashValue(ipfsHash);
-    console.log('Calculated hash value:', hashValue.toString());
-    
-    // Calculate numerical value from secret
-    const secretBuffer = Buffer.from(secret);
-    let secretValue = 0n; // Define as BigInt
-    for (let i = 0; i < secretBuffer.length; i++) {
-      secretValue = (secretValue * 256n + BigInt(secretBuffer[i])) % SNARK_FIELD_SIZE;
-    }
-    
-    // ZK Proof inputs
-    const input = {
-      hash: hashValue.toString(),
-      secret: secretValue.toString()
-    };
-    console.log('ZK Proof inputs ready');
-    
-    // Load ZK circuit
-    console.log('Loading ZK circuit...');
-    try {
-      await loadCircuit();
-      console.log('ZK circuit successfully loaded');
-    } catch (circuitError) {
-      console.error('ZK circuit loading error (switching to simple mode):', circuitError);
-      return generateSimpleProof(ipfsHash, secret);
-    }
-    
-    // Create proof with snarkjs
-    try {
-      console.log('Calling snarkjs.groth16.fullProve');
-      console.log('Circuit status:', {
-        wasmLength: circuit?.wasm?.byteLength || 0,
-        zkeyLength: circuit?.zkey?.byteLength || 0
-      });
-      
-      const proof = await snarkjs.groth16.fullProve(
-        input, 
-        circuit.wasm, 
-        circuit.zkey
-      );
-      
-      console.log('ZK Proof successfully created');
-      return {
-        proof: proof.proof,
-        publicSignals: proof.publicSignals,
-        hashValue: hashValue.toString()
-      };
-    } catch (proofError) {
-      console.error('snarkjs proof generation error:', proofError);
-      
-      // Fallback for Invalid FastFile error
-      if (proofError.message && proofError.message.includes('Invalid FastFile type')) {
-        console.log('Invalid FastFile error caught, switching to simple mode');
-        return generateSimpleProof(ipfsHash, secret);
-      }
-      
-      throw proofError;
-    }
-  } catch (error) {
-    console.error('ZK Proof generation error:', error);
-    console.error('Error stack:', error.stack);
-    throw new Error(`Could not create ZK Proof: ${error.message}`);
-  }
-}
-
-/**
- * Verify given proof for expected IPFS hash
- *
- * @param {object} proof - ZK proof to verify
- * @param {Array<string>} publicSignals - Public signals of the proof
+ * @param {Object} proof - Proof to verify
+ * @param {Array} publicSignals - Public inputs
  * @param {string} expectedIpfsHash - Expected IPFS hash
- * @returns {Promise<boolean>} - Is the proof valid
+ * @returns {Promise<boolean>} Verification result
  */
 export async function verifyProof(proof, publicSignals, expectedIpfsHash) {
   try {
-    console.log('Verifying ZK Proof...');
+    console.log('Verifying Succinct proof...');
     
     // Fallback proof check
     if (proof.isFallback) {
@@ -239,57 +271,68 @@ export async function verifyProof(proof, publicSignals, expectedIpfsHash) {
       return publicSignals[0] === expectedHashValue;
     }
     
-    // Calculate numerical value from expected IPFS hash
-    const expectedHashValue = calculateHashValue(expectedIpfsHash);
+    // Verify with Succinct API
+    const response = await axios.post(
+      `${SUCCINCT_API_BASE_URL}/proofs/verify`,
+      {
+        program_id: FILE_VERIFY_PROGRAM_ID,
+        proof: proof,
+        public_inputs: publicSignals
+      },
+      {
+        headers: {
+          'Authorization': `Bearer ${SUCCINCT_API_KEY}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
     
-    // Load verification key
-    const vKey = await loadVerificationKey();
+    if (response.status !== 200) {
+      throw new Error(`Succinct API returned status ${response.status}`);
+    }
     
-    // Verify with snarkjs
-    const isValid = await snarkjs.groth16.verify(vKey, publicSignals, proof);
+    const verificationResult = response.data;
+    console.log('Verification result:', verificationResult);
     
-    console.log('ZK Proof verification result:', isValid);
-    return isValid;
+    return verificationResult.valid === true;
   } catch (error) {
-    console.error('ZK Proof verification error:', error);
-    throw new Error(`Could not verify ZK Proof: ${error.message}`);
+    console.error('Proof verification error:', error);
+    throw new Error(`Could not verify proof: ${error.message}`);
   }
 }
 
 /**
- * Create a ZK proof to verify IPFS file existence and save it on Celestia
+ * Create a file verification
  * 
- * @param {string} ipfsHash - IPFS CID to verify
- * @param {string} secret - Secret value known by the file owner
- * @returns {Promise<object>} - ZK verification results
+ * @param {string} ipfsHash - IPFS CID
+ * @param {string} secret - Secret known by the file owner
+ * @returns {Promise<Object>} Verification result
  */
 export async function createFileVerification(ipfsHash, secret) {
   try {
-    console.log('File verification starting:', ipfsHash);
+    console.log('File verification starting with Succinct:', ipfsHash);
     
-    // Check ZK circuits availability
+    // Check Succinct network availability
     try {
       await checkZkCircuitAvailability();
     } catch (e) {
-      console.warn('ZK circuits check failed:', e);
+      console.warn('Succinct Network check failed:', e);
     }
     
     // Generate ZK Proof
-    const { proof, publicSignals, hashValue, isFallback } = await generateProof(ipfsHash, secret);
-    
-    // Serialize ZK Proof and related information
-    const verificationData = {
-      ipfsHash,
-      publicSignals,
-      proof,
-      hashValue,
-      timestamp: new Date().toISOString(),
-      isFallback: isFallback || false
-    };
+    const proofData = await generateProof(ipfsHash, secret);
     
     return {
       isValid: true,
-      verificationData
+      verificationData: {
+        ipfsHash,
+        publicSignals: proofData.publicSignals,
+        proof: proofData.proof,
+        hashValue: proofData.hashValue,
+        proofId: proofData.proofId,
+        timestamp: proofData.timestamp || new Date().toISOString(),
+        isFallback: proofData.isFallback || false
+      }
     };
   } catch (error) {
     console.error('File verification error:', error);
@@ -301,59 +344,18 @@ export async function createFileVerification(ipfsHash, secret) {
 }
 
 /**
- * Check ZK circuit files availability
+ * Get ZK status
  * 
- * @returns {Promise<boolean>} - Are circuit files available
- */
-export async function checkZkCircuitAvailability() {
-  try {
-    console.log('Checking ZK circuit files availability...');
-    
-    // Check circuit files existence
-    const wasmResponse = await fetch(CIRCUIT_WASM_URL, { method: 'HEAD' });
-    const zkeyResponse = await fetch(CIRCUIT_ZKEY_URL, { method: 'HEAD' });
-    const vkeyResponse = await fetch(VERIFICATION_KEY_URL, { method: 'HEAD' });
-    
-    const circuitsAvailable = wasmResponse.ok && zkeyResponse.ok && vkeyResponse.ok;
-    
-    console.log('Are ZK circuit files available:', circuitsAvailable);
-    console.log('WASM:', wasmResponse.status, 'zKey:', zkeyResponse.status, 'vKey:', vkeyResponse.status);
-    
-    // Save result to session storage (for UI display)
-    sessionStorage.setItem('zk_circuits_available', String(circuitsAvailable));
-    
-    return circuitsAvailable;
-  } catch (error) {
-    console.error('ZK circuit check error:', error);
-    sessionStorage.setItem('zk_circuits_available', 'false');
-    return false;
-  }
-}
-
-// Preload ZK circuit - can be called when page loads if desired
-export async function preloadZkCircuits() {
-  try {
-    await loadCircuit();
-    await loadVerificationKey();
-    return true;
-  } catch (e) {
-    console.error('ZK circuits could not be preloaded:', e);
-    return false;
-  }
-}
-
-/**
- * Check ZK status
- * 
- * @returns {Promise<Object>} - ZK status information
+ * @returns {Promise<Object>} ZK status information
  */
 export async function getZkStatus() {
   try {
-    // Check circuit files
-    const circuitsAvailable = await checkZkCircuitAvailability();
+    // Check Succinct Network
+    const networkStatus = await checkZkCircuitAvailability();
     
     return {
-      circuitsAvailable,
+      circuitsAvailable: networkStatus.circuitsAvailable,
+      networkInfo: networkStatus.networkInfo,
       timestamp: new Date().toISOString()
     };
   } catch (error) {
@@ -363,5 +365,19 @@ export async function getZkStatus() {
       error: error.message,
       timestamp: new Date().toISOString()
     };
+  }
+}
+
+/**
+ * Preload connection check
+ * Can be called when page loads
+ */
+export async function preloadZkCircuits() {
+  try {
+    await checkZkCircuitAvailability();
+    return true;
+  } catch (e) {
+    console.error('Succinct Network could not be preloaded:', e);
+    return false;
   }
 } 

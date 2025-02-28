@@ -1,7 +1,7 @@
 import { writable } from 'svelte/store';
 import { userDatabase } from './database.js';
 
-// Wallet durumu için başlangıç değerleri
+// Initial values for wallet state
 const initialState = {
   connected: false,
   publicKey: null,
@@ -11,14 +11,14 @@ const initialState = {
   autoconnect: false
 };
 
-// Wallet store'unu oluştur
+// Create wallet store
 function createWalletStore() {
-  // Browser'da localStorage var mı kontrol et
+  // Check if localStorage exists in browser
   const savedState = typeof localStorage !== 'undefined' 
     ? JSON.parse(localStorage.getItem('wallet_state') || 'null')
     : null;
   
-  // Başlangıç durumunu localStorage'dan al ya da default değerleri kullan
+  // Get initial state from localStorage or use default values
   const startState = savedState || initialState;
   
   const { subscribe, set, update } = writable(startState);
@@ -26,7 +26,7 @@ function createWalletStore() {
   return {
     subscribe,
     
-    // Cüzdanı bağla
+    // Connect wallet
     connect: (publicKey, username, avatar) => update(state => {
       const newState = { 
         ...state, 
@@ -37,17 +37,17 @@ function createWalletStore() {
         autoconnect: true 
       };
       
-      // LocalStorage'a kaydet
+      // Save to localStorage
       try {
         localStorage.setItem('wallet_state', JSON.stringify(newState));
       } catch (e) {
-        console.error('Wallet durumu kaydedilemedi:', e);
+        console.error('Could not save wallet state:', e);
       }
       
       return newState;
     }),
     
-    // Cüzdanı bağlantısını kes
+    // Disconnect wallet
     disconnect: () => update(state => {
       const newState = { 
         ...state, 
@@ -59,25 +59,25 @@ function createWalletStore() {
         autoconnect: false 
       };
       
-      // LocalStorage'ı temizle
+      // Clear localStorage
       try {
         localStorage.removeItem('wallet_state');
       } catch (e) {
-        console.error('Wallet durumu temizlenemedi:', e);
+        console.error('Could not clear wallet state:', e);
       }
       
       return newState;
     }),
     
-    // Bakiyeyi güncelle
+    // Update balance
     updateBalance: (balance) => update(state => {
       const newState = { ...state, balance };
       
-      // LocalStorage'a kaydet
+      // Save to localStorage
       try {
         localStorage.setItem('wallet_state', JSON.stringify(newState));
       } catch (e) {
-        console.error('Wallet durumu güncellenemedi:', e);
+        console.error('Could not update wallet state:', e);
       }
       
       return newState;

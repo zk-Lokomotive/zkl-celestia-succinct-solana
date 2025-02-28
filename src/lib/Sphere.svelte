@@ -18,11 +18,12 @@
   }
 </script>
 
+<!-- svelte-ignore a11y-no-static-element-interactions -->
 <div 
   class="sphere"
   on:mousemove={handleMouseMove}
   on:mouseenter={() => isHovered = true}
-  on:mouseleave={() => {
+  on:mouseleave={(event) => {
     isHovered = false;
     event.currentTarget.style.transform = 'rotateX(0) rotateY(0)';
   }}

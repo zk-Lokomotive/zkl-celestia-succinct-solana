@@ -6,7 +6,7 @@
 
 import axios from 'axios';
 
-// API proxy bağlantısı - Tarayıcıdaki CORS sorunlarını çözer
+// API proxy connection - Solves CORS issues in the browser
 const CELESTIA_API_ENDPOINT = 'http://localhost:3080/api/celestia';
 
 const CELESTIA_AUTH_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJBbGxvdyI6WyJwdWJsaWMiLCJyZWFkIiwid3JpdGUiLCJhZG1pbiJdLCJOb25jZSI6IlFJdno4WFc5WHdQQ3BNRkcxRG9QMTNVTk05NlNOQnFPeUtkcEdRaVFXaU09IiwiRXhwaXJlc0F0IjoiMDAwMS0wMS0wMVQwMDowMDowMFoifQ.Sbk2uLWPP53IY2qDIhTDnY0Z5ArkIrrU8sO1AM_x1tQ';
@@ -14,9 +14,9 @@ const CELESTIA_AUTH_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJBbGxvdyI6Wy
 // makes it easier to find the data
 const DEFAULT_NAMESPACE = 'zkl-ipfs';
 
-// Axios retry yapılandırması - bağlantı sorunlarında tekrar dener
+// Axios retry configuration - retries on connection issues
 axios.interceptors.response.use(undefined, async (err) => {
-  // Retry sadece network hataları için
+  // Retry only for network errors
   const { config } = err;
   if (!config || !config.retry) {
     return Promise.reject(err);
@@ -30,11 +30,11 @@ axios.interceptors.response.use(undefined, async (err) => {
   
   config.retry.count += 1;
   
-  // Retry'dan önce biraz bekle
+  // Wait a bit before retry
   const delay = config.retry.delay || 1000;
   await new Promise(resolve => setTimeout(resolve, delay));
   
-  console.log(`Yeniden bağlanma denemesi ${config.retry.count}/${config.retry.maxRetries}`);
+  console.log(`Reconnection attempt ${config.retry.count}/${config.retry.maxRetries}`);
   return axios(config);
 });
 
@@ -64,7 +64,7 @@ export async function checkCelestiaConnection() {
     
     const connectionInfo = {
       timestamp: new Date().toISOString(),
-      network: 'mocha', // Varsayılan ağ
+      network: 'mocha', // Default network
       api_version: response.data?.result?.api_version || 'unknown',
       node_type: response.data?.result?.type || 0,
       connected: true
@@ -91,12 +91,12 @@ export async function checkCelestiaConnection() {
         
         // Add a warning if balance is low
         if (parseInt(connectionInfo.balance, 10) <= 0) {
-          connectionInfo.balanceWarning = 'Yetersiz bakiye. Veri yükleyemezsiniz.';
+          connectionInfo.balanceWarning = 'Insufficient balance. You cannot upload data.';
         }
       }
     } catch (balanceError) {
-      console.warn('Bakiye kontrol edilirken hata oluştu:', balanceError);
-      connectionInfo.balanceError = 'Bakiye bilgisi alınamadı';
+      console.warn('Error while checking balance:', balanceError);
+      connectionInfo.balanceError = 'Could not retrieve balance information';
     }
     
     // Save connection status to session storage for UI components
@@ -117,7 +117,7 @@ export async function checkCelestiaConnection() {
       timestamp: new Date().toISOString(),
       error: error.message,
       status: 'disconnected',
-      userMessage: 'Celestia node bağlantısı kurulamadı. Lütfen node\'un çalıştığından emin olun.'
+      userMessage: 'Could not connect to Celestia node. Please make sure the node is running.'
     };
     
     // Save error status to session storage
@@ -127,7 +127,7 @@ export async function checkCelestiaConnection() {
       console.warn('Failed to save connection error to session storage:', storageError);
     }
     
-    throw new Error(`Celestia bağlantısı başarısız: ${error.message}`);
+    throw new Error(`Celestia connection failed: ${error.message}`);
   }
 }
 
@@ -136,10 +136,10 @@ export async function checkCelestiaConnection() {
  * @returns {Object} Connection information
  */
 export function getCelestiaConnectionInfo() {
-  // Önce yeni anahtarı dene
+  // Try the new key first
   let connectionInfoStr = sessionStorage.getItem('celestiaConnectionInfo');
   
-  // Eğer yoksa, eski anahtarı kontrol et
+  // If not found, check the old key
   if (!connectionInfoStr) {
     connectionInfoStr = sessionStorage.getItem('celestia_connection_info');
   }
@@ -154,10 +154,10 @@ export function getCelestiaConnectionInfo() {
   try {
     return JSON.parse(connectionInfoStr);
   } catch (error) {
-    console.error('Celestia bağlantı bilgisi çözümleme hatası:', error);
+    console.error('Celestia connection info parsing error:', error);
     return {
       isConnected: false,
-      error: 'Bağlantı bilgisi çözümleme hatası'
+      error: 'Connection info parsing error'
     };
   }
 }
@@ -221,29 +221,29 @@ export function fromHexString(hexData) {
 
 /**
  * Convert a string or object to base64 format
- * Bu yöntem, blob submit için kullanılmayacak,
- * ancak diğer kısımlar için korunuyor.
+ * This method will not be used for blob submit,
+ * but is kept for other parts.
  * @param {string|object} data - Data to convert
  * @returns {string} Base64 format data
  */
 export function toBase64String(data) {
   try {
     const jsonStr = typeof data === 'string' ? data : JSON.stringify(data);
-    console.log('Base64 dönüşümü öncesi veri:', jsonStr);
+    console.log('Data before Base64 conversion:', jsonStr);
     
-    // UTF-8 to Base64 conversion - Web-safe base64 kullan
+    // UTF-8 to Base64 conversion - Use web-safe base64
     const base64Str = btoa(unescape(encodeURIComponent(jsonStr)));
-    console.log('Base64 dönüşümü sonrası:', base64Str);
+    console.log('After Base64 conversion:', base64Str);
     
-    // Base64 formatının geçerliliğini kontrol et
+    // Check validity of Base64 format
     const isValidBase64 = /^[A-Za-z0-9+/=]+$/.test(base64Str);
-    console.log('Geçerli base64 formatı mı?', isValidBase64);
+    console.log('Is valid base64 format?', isValidBase64);
     
     return base64Str;
   } catch (error) {
-    console.error('Base64 dönüşüm hatası:', error);
-    // Hata durumunda boş string yerine hata fırlatmak daha iyi
-    throw new Error(`Base64 dönüşümü başarısız: ${error.message}`);
+    console.error('Base64 conversion error:', error);
+    // Better to throw an error than return empty string in case of failure
+    throw new Error(`Base64 conversion failed: ${error.message}`);
   }
 }
 
@@ -254,13 +254,13 @@ export function toBase64String(data) {
  */
 export function fromBase64String(base64Data) {
   try {
-    // Standart window.atob kullanarak base64'den decode et
+    // Decode from base64 using standard window.atob
     const rawString = atob(base64Data);
     
-    // UTF-8 karakterleri doğru şekilde işle
+    // Handle UTF-8 characters correctly
     const result = decodeURIComponent(escape(rawString));
     
-    console.log('Base64 çözümlenmiş veri:', result);
+    console.log('Base64 decoded data:', result);
     
     // Try to parse as JSON, otherwise return as string
     try {
@@ -269,8 +269,8 @@ export function fromBase64String(base64Data) {
       return result;
     }
   } catch (e) {
-    console.error('Base64 çözümleme hatası:', e);
-    return base64Data; // Hata durumunda orijinal veriyi döndür
+    console.error('Base64 decoding error:', e);
+    return base64Data; // Return original data in case of error
   }
 }
 
@@ -283,11 +283,11 @@ export function fromBase64String(base64Data) {
 export async function submitToCelestia(ipfsHash, namespace = DEFAULT_NAMESPACE) {
   // Validate inputs
   if (!ipfsHash) {
-    throw new Error('Geçersiz IPFS hash');
+    throw new Error('Invalid IPFS hash');
   }
   
   try {
-    console.log(`IPFS hash ${ipfsHash}'ini namespace ${namespace} altında Celestia'ya gönderiliyor`);
+    console.log(`Sending IPFS hash ${ipfsHash} to Celestia under namespace ${namespace}`);
     
     // Check balance first before submission
     try {
@@ -311,7 +311,7 @@ export async function submitToCelestia(ipfsHash, namespace = DEFAULT_NAMESPACE) 
         const balance = parseInt(balanceResponse.data.result.amount, 10);
         if (balance <= 0) {
           console.warn('Celestia account has insufficient balance');
-          throw new Error('Yetersiz Celestia bakiyesi. Lütfen hesabınıza bakiye yükleyin.');
+          throw new Error('Insufficient Celestia balance. Please add funds to your account.');
         }
       }
     } catch (balanceError) {
@@ -319,13 +319,13 @@ export async function submitToCelestia(ipfsHash, namespace = DEFAULT_NAMESPACE) 
       // Continue with submission attempt
     }
     
-    // Namespace'i hex formatında hazırla - daima 0x ile başlamalı
+    // Prepare namespace in hex format - should always start with 0x
     const namespaceHex = namespace.startsWith('0x') 
       ? namespace 
       : `0x${toHexString(namespace)}`;
     
-    // ÖNEMLİ DEĞİŞİKLİK: IPFS hash'ini veriyi düz metin olarak bırak
-    // Celestia kendi kendine encode edecek, böylece hata almazsınız
+    // IMPORTANT CHANGE: Leave the IPFS hash as plain text
+    // Celestia will encode it itself, so you won't get errors
     const rpcRequest = {
       jsonrpc: "2.0",
       id: 1, 
@@ -334,7 +334,7 @@ export async function submitToCelestia(ipfsHash, namespace = DEFAULT_NAMESPACE) 
         [
           {
             namespace: namespaceHex,
-            data: ipfsHash, // Düz metin olarak gönder - ÖNEMLİ
+            data: ipfsHash, // Send as plain text - IMPORTANT
             share_version: 0
           }
         ],
@@ -342,7 +342,7 @@ export async function submitToCelestia(ipfsHash, namespace = DEFAULT_NAMESPACE) 
       ]
     };
     
-    console.log('Celestia blob gönderme isteği:', JSON.stringify(rpcRequest, null, 2));
+    console.log('Celestia blob submission request:', JSON.stringify(rpcRequest, null, 2));
     
     // Submit blob to Celestia
     const response = await axios.post(
@@ -359,7 +359,7 @@ export async function submitToCelestia(ipfsHash, namespace = DEFAULT_NAMESPACE) 
     if (response.data.error) {
       // Check for insufficient balance error specifically
       if (response.data.error.message && response.data.error.message.includes('insufficient')) {
-        throw new Error('Yetersiz Celestia bakiyesi. Lütfen hesabınıza bakiye yükleyin.');
+        throw new Error('Insufficient Celestia balance. Please add funds to your account.');
       }
       throw new Error(`Celestia error: ${response.data.error.message || JSON.stringify(response.data.error)}`);
     }
@@ -368,12 +368,12 @@ export async function submitToCelestia(ipfsHash, namespace = DEFAULT_NAMESPACE) 
     
     console.log(`Data submitted to Celestia at height: ${height}`);
     
-    // Gerçek txhash'i response'dan al
+    // Get the actual txhash from the response
     const txhash = response.data.result.txhash || `celestia-pfb-${height}-${Date.now()}`;
     
     const txResult = {
       height,
-      txhash, // Gerçek transaction hash'i kullan
+      txhash, // Use the actual transaction hash
       celestiaUrl: `https://explorer.consensus-celestia.app/tx/${txhash}`,
       namespace: namespaceHex,
       ipfsHash
@@ -386,7 +386,7 @@ export async function submitToCelestia(ipfsHash, namespace = DEFAULT_NAMESPACE) 
     console.error('Error submitting to Celestia:', error);
     // Check for specific error messages
     if (error.message.includes('insufficient') || error.message.includes('balance') || error.message.includes('bakiye')) {
-      throw new Error('Yetersiz Celestia bakiyesi. Lütfen hesabınıza bakiye yükleyin.');
+      throw new Error('Insufficient Celestia balance. Please add funds to your account.');
     }
     throw new Error(`Failed to submit to Celestia: ${error.message}`);
   }
@@ -454,11 +454,11 @@ export async function getDataFromCelestia(height, namespace = DEFAULT_NAMESPACE)
       method: "blob.GetAll",
       params: [
         typeof height === 'string' ? parseInt(height, 10) : height,
-        [namespaceHex] // Namespace artık bir array olarak gönderiliyor - ÖNEMLİ
+        [namespaceHex] // Namespace is now sent as an array - IMPORTANT
       ]
     };
     
-    console.log('Celestia GetAll isteği:', JSON.stringify(rpcRequest, null, 2));
+    console.log('Celestia GetAll request:', JSON.stringify(rpcRequest, null, 2));
     
     // Get blobs from Celestia
     const response = await axios.post(
@@ -476,8 +476,8 @@ export async function getDataFromCelestia(height, namespace = DEFAULT_NAMESPACE)
       throw new Error(`Celestia error: ${response.data.error.message || JSON.stringify(response.data.error)}`);
     }
     
-    // Yanıtı process et
-    console.log('Celestia GetAll yanıtı:', JSON.stringify(response.data, null, 2));
+    // Process the response
+    console.log('Celestia GetAll response:', JSON.stringify(response.data, null, 2));
     
     // The result should be an array of blobs
     const blobs = response.data.result || [];
@@ -490,13 +490,13 @@ export async function getDataFromCelestia(height, namespace = DEFAULT_NAMESPACE)
     const processedData = blobs.map(blob => {
       let data = blob.data;
       
-      console.log('Ham blob verisi:', data);
+      console.log('Raw blob data:', data);
       
-      // Çoğu durumda, data doğrudan IPFS hash olarak gelecektir,
-      // çünkü düz metin olarak gönderdik.
-      // Ancak bazı durumlarda formatlama olabilir, bunları kontrol edelim.
+      // In most cases, data will come directly as IPFS hash,
+      // because we sent it as plain text.
+      // However, in some cases there might be formatting, let's check for those.
       
-      // Ham veriyi de saklayalım
+      // Let's also store the raw data
       return {
         raw: data,
         parsed: typeof data === 'string' ? data : JSON.stringify(data),
@@ -553,7 +553,7 @@ export async function verifyCelestiaData(height, expectedIpfsHash, namespace = D
         blobData = JSON.stringify(blobData);
       }
       
-      // Ham veri string değilse
+      // If raw data is not a string
       if (typeof blobData !== 'string') {
         console.log('Non-string blob data found:', blobData);
         continue;

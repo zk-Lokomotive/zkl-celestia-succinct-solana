@@ -22,3 +22,60 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Rust compiler outputs
+/target/
+**/*.rs.bk
+Cargo.lock
+
+# SP1 specific files
+.sp1/
+/.sp1/
+ipfs_verification_proof.json
+**/*.elf
+**/*.json.zkey
+**/*.wasm
+
+# Build and runtime outputs
+sp1-programs/**/target/
+sp1-programs/**/build/
+
+# Environment variables and special settings
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Editor files
+.idea/
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.sublime-workspace
+*.swp
+*.swo
+
+# Operating system files
+.DS_Store
+Thumbs.db
+
+# Debug and log files
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+debug/
+*.debug
+
+# Docker files
+.docker/
+docker-volumes/
+
+# Installed modules
+node_modules/
+
+# Succinct Network files and special proofs
+**/proofs/
+*verify_proof.json

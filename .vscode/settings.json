@@ -1,0 +1,26 @@
+{
+    "rust-analyzer.cargo.features": ["std"],
+    "rust-analyzer.cargo.loadOutDirsFromCheck": true,
+    "rust-analyzer.procMacro.enable": true,
+    "rust-analyzer.cargo.buildScripts.enable": true,
+    "rust-analyzer.checkOnSave.command": "check",
+    "rust-analyzer.checkOnSave.extraArgs": ["--target-dir", "./target"],
+    "rust-analyzer.cargo.extraEnv": {
+        "RUSTFLAGS": "--cfg=feature=\"std\""
+    },
+    "rust-analyzer.diagnostics.disabled": [
+        "unresolved-import",
+        "unresolved-proc-macro"
+    ],
+    "rust-analyzer.linkedProjects": [
+        "./Cargo.toml"
+    ],
+    "rust-analyzer.server.extraEnv": {
+        "RUSTUP_TOOLCHAIN": "stable"
+    },
+    "rust-analyzer.cargo.target": "x86_64-unknown-linux-gnu",
+    "rust-analyzer.check.targets": ["x86_64-unknown-linux-gnu"],
+    "rust-analyzer.check.ignoredCrates": ["sp1-sdk"],
+    "rust-analyzer.cargo.noDefaultFeatures": false,
+    "rust-analyzer.cargo.allFeatures": false
+} 

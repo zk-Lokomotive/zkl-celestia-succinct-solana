@@ -1,6 +1,6 @@
 <!-- 
-  ZK Status Component
-  This component shows the status of ZK circuit files
+  Succinct ZK Status Component
+  This component shows the status of Succinct Prover Network connection
 -->
 <script>
   import { onMount, onDestroy } from 'svelte';
@@ -10,7 +10,7 @@
   let status = 'checking'; // 'checking', 'available', 'unavailable'
   let lastCheck = null;
   let checkInterval;
-  let circuitDetails = null;
+  let networkInfo = null;
   
   $: isDark = $themeStore.isDark;
   
@@ -19,14 +19,14 @@
       status = 'checking';
       const statusResult = await getZkStatus();
       status = statusResult.circuitsAvailable ? 'available' : 'unavailable';
-      circuitDetails = statusResult;
+      networkInfo = statusResult.networkInfo;
       lastCheck = new Date(statusResult.timestamp || Date.now());
-      console.log(`ZK circuit status: ${status}`, statusResult);
+      console.log(`Succinct Network status: ${status}`, statusResult);
     } catch (error) {
-      console.error('ZK circuit check error:', error);
+      console.error('Succinct Network check error:', error);
       status = 'unavailable';
       lastCheck = new Date();
-      circuitDetails = null;
+      networkInfo = null;
     }
   }
   
@@ -51,16 +51,23 @@
       class:unavailable={status === 'unavailable'}>
     </div>
     <div class="status-text">
-      <span class="status-label">ZK Circuits</span>
+      <span class="status-label">Succinct Network</span>
       <span class="status-value">
         {#if status === 'checking'}
           Checking...
         {:else if status === 'available'}
-          Available
+          Connected
+          {#if networkInfo && networkInfo.network}
+            <span class="network-info">({networkInfo.network})</span>
+          {/if}
         {:else}
           Unavailable
         {/if}
       </span>
+      
+      {#if status === 'available' && networkInfo && networkInfo.latency}
+        <span class="latency-info">Latency: {networkInfo.latency}ms</span>
+      {/if}
     </div>
   </div>
   
@@ -127,6 +134,18 @@
   
   .status-value {
     font-weight: 500;
+  }
+  
+  .network-info {
+    font-size: 0.8rem;
+    opacity: 0.8;
+    margin-left: 0.3rem;
+  }
+  
+  .latency-info {
+    font-size: 0.75rem;
+    opacity: 0.7;
+    margin-top: 0.1rem;
   }
   
   .status-time {

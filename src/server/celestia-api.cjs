@@ -1,4 +1,4 @@
-// Celestia API Proxy Server
+// Celestia API Proxy Server with Succinct integration
 const express = require('express');
 const cors = require('cors');
 const axios = require('axios');
@@ -22,6 +22,11 @@ app.use(bodyParser.json({ limit: '50mb' }));
 // Celestia node yapılandırması
 const CELESTIA_NODE_URL = 'http://localhost:26658';
 const CELESTIA_AUTH_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJBbGxvdyI6WyJwdWJsaWMiLCJyZWFkIiwid3JpdGUiLCJhZG1pbiJdLCJOb25jZSI6IlFJdno4WFc5WHdQQ3BNRkcxRG9QMTNVTk05NlNOQnFPeUtkcEdRaVFXaU09IiwiRXhwaXJlc0F0IjoiMDAwMS0wMS0wMVQwMDowMDowMFoifQ.Sbk2uLWPP53IY2qDIhTDnY0Z5ArkIrrU8sO1AM_x1tQ';
+
+// Succinct Prover Network yapılandırması
+const SUCCINCT_API_URL = 'https://testnet-api.succinct.xyz/api';
+const SUCCINCT_API_KEY = 'YOUR_SUCCINCT_TESTNET_API_KEY'; // Gerçek API anahtarınızla değiştirin
+const FILE_VERIFY_PROGRAM_ID = 'zkl-file-verify-v1';
 
 // Middlewares
 app.use((req, res, next) => {
@@ -374,6 +379,181 @@ app.post('/api/celestia/run-cli', async (req, res) => {
   }
 });
 
+// ===== Succinct Prover Network Entegrasyonu =====
+
+// Succinct Network durum kontrolü
+app.get('/api/succinct/status', async (req, res) => {
+  try {
+    console.log('Succinct Network durumu kontrol ediliyor...');
+    
+    const response = await axios.get(
+      `${SUCCINCT_API_URL}/status`,
+      {
+        headers: {
+          'Authorization': `Bearer ${SUCCINCT_API_KEY}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+    
+    res.json({
+      status: 'connected',
+      networkInfo: response.data,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Succinct Network durumu alınamadı:', error.message);
+    res.status(500).json({
+      status: 'disconnected',
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// Succinct Proof oluşturma endpoint'i
+app.post('/api/succinct/generate-proof', async (req, res) => {
+  try {
+    const { ipfs_hash, secret } = req.body;
+    
+    if (!ipfs_hash) {
+      return res.status(400).json({
+        error: 'IPFS hash gerekli',
+        timestamp: new Date().toISOString()
+      });
+    }
+    
+    console.log(`Succinct Proof oluşturuluyor: IPFS Hash=${ipfs_hash}`);
+    
+    // Basit hash değeri hesaplama (frontend'in calculateHashValue fonksiyonuna benzer)
+    const hashBuffer = Buffer.from(ipfs_hash);
+    let hashValue = BigInt(0);
+    const FIELD_SIZE = BigInt("21888242871839275222246405745257275088548364400416034343698204186575808495617");
+    
+    for (let i = 0; i < hashBuffer.length; i++) {
+      hashValue = (hashValue * BigInt(256) + BigInt(hashBuffer[i])) % FIELD_SIZE;
+    }
+    
+    // Proof için input hazırlama
+    const inputs = {
+      ipfs_hash,
+      hash_value: hashValue.toString(),
+      secret: secret || "default-secret"
+    };
+    
+    // Succinct API'ye proof isteği gönder
+    const response = await axios.post(
+      `${SUCCINCT_API_URL}/proofs/generate`,
+      {
+        program_id: FILE_VERIFY_PROGRAM_ID,
+        inputs
+      },
+      {
+        headers: {
+          'Authorization': `Bearer ${SUCCINCT_API_KEY}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+    
+    const proofRequest = response.data;
+    console.log('Proof isteği oluşturuldu:', proofRequest);
+    
+    res.json({
+      status: 'pending',
+      request_id: proofRequest.request_id,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Proof oluşturma hatası:', error.message);
+    res.status(500).json({
+      status: 'error',
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// Proof durumu kontrol endpoint'i
+app.get('/api/succinct/proof-status/:requestId', async (req, res) => {
+  try {
+    const { requestId } = req.params;
+    
+    if (!requestId) {
+      return res.status(400).json({
+        error: 'Request ID gerekli',
+        timestamp: new Date().toISOString()
+      });
+    }
+    
+    console.log(`Proof durumu kontrol ediliyor: ${requestId}`);
+    
+    const response = await axios.get(
+      `${SUCCINCT_API_URL}/proofs/${requestId}`,
+      {
+        headers: {
+          'Authorization': `Bearer ${SUCCINCT_API_KEY}`
+        }
+      }
+    );
+    
+    res.json({
+      ...response.data,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Proof durumu alınamadı:', error.message);
+    res.status(500).json({
+      status: 'error',
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// Proof doğrulama endpoint'i
+app.post('/api/succinct/verify-proof', async (req, res) => {
+  try {
+    const { proof, public_inputs } = req.body;
+    
+    if (!proof || !public_inputs) {
+      return res.status(400).json({
+        error: 'Proof ve public inputs gerekli',
+        timestamp: new Date().toISOString()
+      });
+    }
+    
+    console.log('Proof doğrulanıyor...');
+    
+    const response = await axios.post(
+      `${SUCCINCT_API_URL}/proofs/verify`,
+      {
+        program_id: FILE_VERIFY_PROGRAM_ID,
+        proof,
+        public_inputs
+      },
+      {
+        headers: {
+          'Authorization': `Bearer ${SUCCINCT_API_KEY}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+    
+    res.json({
+      ...response.data,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Proof doğrulama hatası:', error.message);
+    res.status(500).json({
+      status: 'error',
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
 // Genel hata yakalayıcı
 app.use((err, req, res, next) => {
   console.error('Express hatası:', err);
@@ -395,6 +575,7 @@ app.use((req, res) => {
 
 // Sunucuyu başlat
 app.listen(port, () => {
-  console.log(`Celestia API Proxy sunucusu (CLI destekli) şurada çalışıyor: http://localhost:${port}`);
+  console.log(`Celestia & Succinct API Proxy sunucusu şurada çalışıyor: http://localhost:${port}`);
   console.log(`Celestia node port: ${CELESTIA_NODE_URL}`);
+  console.log(`Succinct API: ${SUCCINCT_API_URL}`);
 }); 

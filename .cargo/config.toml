@@ -1,0 +1,27 @@
+# Normal derleme için hedefi kaldırıyorum - sadece SP1 derlemeyi kullanıyorum
+# [build]
+# target = "riscv32imac-unknown-none-elf"
+
+[unstable]
+build-std = ["core", "alloc"]
+
+# RISC-V hedefi için bağlayıcı (linker) ayarları
+[target.riscv32imac-unknown-none-elf]
+rustflags = [
+  "-C", "link-arg=-Tlink.x",
+]
+
+# SP1 özel hedefi
+[target.riscv32im-succinct-zkvm-elf]
+linker = "rust-lld"
+rustflags = [
+  "-C", "link-arg=-Tlink.x",
+]
+
+# Stdlib olmayan ortam için ayarlar
+[target.'cfg(target_os = "none")']
+runner = "echo"
+
+# Rust-Analyzer için düzgün bir hedef tanımlıyorum
+[env]
+CARGO_BUILD_TARGET_DIR = "target/analyzer" 
