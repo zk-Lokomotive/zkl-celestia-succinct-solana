@@ -126,8 +126,25 @@
               <span class="detail-value hash">{truncateHash(ipfsHash)}</span>
             </div>
             <div class="detail-actions">
-              <button class="action-button">Open in IPFS</button>
-              <button class="action-button">Copy CID</button>
+              <a 
+                href={`https://ipfs.io/ipfs/${ipfsHash}`} 
+                target="_blank"
+                rel="noopener noreferrer"
+                class="action-button"
+              >
+                Open in IPFS
+              </a>
+              <button 
+                class="action-button copy-button"
+                on:click={() => {
+                  if (navigator.clipboard) {
+                    navigator.clipboard.writeText(ipfsHash);
+                    alert('IPFS CID copied to clipboard');
+                  }
+                }}
+              >
+                Copy CID
+              </button>
             </div>
           </div>
         {/if}
@@ -163,8 +180,19 @@
                   View in Succinct Explorer
                 </a>
               {/if}
+              <button 
+                class="action-button copy-button"
+                on:click={() => {
+                  if (navigator.clipboard) {
+                    navigator.clipboard.writeText(succinctTxHash);
+                    alert('Transaction hash copied to clipboard');
+                  }
+                }}
+              >
+                Copy TX Hash
+              </button>
             </div>
-            <p class="info-text">This file has been verified using Succinct zkVM with a real transaction.</p>
+            <p class="info-text">File has been verified using Succinct zkVM. The proof is stored on-chain and can be verified by anyone.</p>
           </div>
         {:else if ipfsHash}
           <div class="preview-section disabled">

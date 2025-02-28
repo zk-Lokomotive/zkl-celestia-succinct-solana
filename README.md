@@ -103,53 +103,149 @@ The Succinct SP1 integration enables zkλ to offer several unique capabilities:
 
 ## System Architecture
 
-The zkλ architecture consists of several interconnected components:
+The zkλ architecture consists of several interconnected components organized in a multi-layered approach that integrates various blockchain technologies:
 
 ```
-┌───────────────────┐     ┌─────────────────────┐     ┌─────────────────┐
-│                   │     │                     │     │                 │
-│  Svelte Frontend  │◄───►│  zkλ Core Services  │◄───►│  API Proxy      │
-│  (User Interface) │     │  (Business Logic)   │     │  (Server)       │
-│                   │     │                     │     │                 │
-└────────┬──────────┘     └─────────┬───────────┘     └────────┬────────┘
-         │                          │                          │
-         │                          │                          │
-         ▼                          ▼                          ▼
-┌────────────────────────────────────────────────────────────────────────┐
-│                                                                        │
-│                           External Services                            │
-│                                                                        │
-├────────────────┬─────────────────────────────┬───────────────────────┐ │
-│                │                             │                       │ │
-│  IPFS Node     │  Celestia Light Node       │  zkVM Succinct │ │
-│  (Storage)     │  (Data Availability)        │  (Verification)       │ │
-│                │                             │                       │ │
-└────────────────┴─────────────────────────────┴───────────────────────┘ │
-│                                                                        │
-└────────────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                                                                                 │
+│                               CLIENT LAYER                                      │
+│                                                                                 │
+│  ┌───────────────────┐     ┌─────────────────────┐     ┌─────────────────────┐  │
+│  │                   │     │                     │     │                     │  │
+│  │  Svelte Frontend  │◄───►│  zkλ Core Services  │◄───►│  Theme & UI State   │  │
+│  │  (User Interface) │     │  (Business Logic)   │     │  Management         │  │
+│  │                   │     │                     │     │                     │  │
+│  └────────┬──────────┘     └─────────┬───────────┘     └─────────┬───────────┘  │
+│           │                          │                           │              │
+│           │                          │                           │              │
+│           ▼                          ▼                           ▼              │
+│  ┌────────────────────┐    ┌──────────────────────┐    ┌──────────────────────┐ │
+│  │                    │    │                      │    │                      │ │
+│  │ User Components    │    │ Store Management     │    │ Service Interfaces   │ │
+│  │ ┌────────────────┐ │    │ ┌────────────────┐   │    │ ┌────────────────┐   │ │
+│  │ │ WalletConnect  │ │    │ │ fileStore      │   │    │ │ ipfs.js        │   │ │
+│  │ │ Upload UI      │ │    │ │ inboxStore     │   │    │ │ celestia.js    │   │ │
+│  │ │ Inbox          │◄┼────┼─┤ walletStore    │◄──┼────┼─┤ solana.js      │   │ │
+│  │ │ PayloadPreview │ │    │ │ userDatabase   │   │    │ │ zk.js          │   │ │
+│  │ │ Status Display │ │    │ └────────────────┘   │    │ └────────────────┘   │ │
+│  │ └────────────────┘ │    │                      │    │                      │ │
+│  └────────┬───────────┘    └──────────┬───────────┘    └──────────┬───────────┘ │
+│           │                           │                           │             │
+└───────────┼───────────────────────────┼───────────────────────────┼─────────────┘
+            │                           │                           │
+            │                           │                           │
+            ▼                           ▼                           ▼
+┌───────────────────────────────────────────────────────────────────────────────────┐
+│                                                                                   │
+│                             BACKEND API LAYER                                     │
+│                                                                                   │
+│  ┌────────────────────┐     ┌─────────────────────┐     ┌─────────────────────┐   │
+│  │                    │     │                     │     │                     │   │
+│  │  Celestia API      │     │  Solana RPC API     │     │  IPFS API           │   │
+│  │  Proxy Server      │     │  Services           │     │  Gateway            │   │
+│  │  (celestia-api.cjs)│     │                     │     │                     │   │
+│  └─────────┬──────────┘     └──────────┬──────────┘     └──────────┬──────────┘   │
+│            │                           │                           │              │
+└────────────┼───────────────────────────┼───────────────────────────┼──────────────┘
+             │                           │                           │
+             │                           │                           │
+             ▼                           ▼                           ▼
+┌────────────────────────────────────────────────────────────────────────────────────┐
+│                                                                                    │
+│                           BLOCKCHAIN & STORAGE INFRASTRUCTURE                      │
+│                                                                                    │
+├─────────────────────┬────────────────────────┬─────────────────────┬──────────────┐│
+│                     │                        │                     │              ││
+│  IPFS Network       │  Celestia Network      │  Solana Network     │  Succinct    ││
+│  (Storage Layer)    │  (Data Availability)   │  (Transaction Layer)│  zkVM Net    ││
+│  ┌───────────────┐  │  ┌──────────────────┐  │  ┌───────────────┐  │  ┌─────────┐ ││
+│  │ IPFS Node     │  │  │ Celestia Light   │  │  │ Solana Node   │  │  │ Prover  │ ││
+│  │ Content Hash  │  │  │ Node             │  │  │ (Devnet)      │  │  │ Network │ ││
+│  │ P2P Storage   │  │  │ Blob Namespace   │  │  │ Transaction   │  │  │ ZK Proof│ ││
+│  │ CID Generation│  │  │ Data Attestation │  │  │ Memo Storage  │  │  │ Verify  │ ││
+│  └───────────────┘  │  └──────────────────┘  │  └───────────────┘  │  └─────────┘ ││
+│                     │                        │                     │              ││
+├─────────────────────┴────────────────────────┴─────────────────────┴──────────────┤│
+│                                                                                    │
+│  ┌─────────────────────────────────┐          ┌────────────────────────────────┐   │
+│  │                                 │          │                                │   │
+│  │ Wallet Integration             │          │ Blockchain Explorers           │   │
+│  │ ┌───────────────┐ ┌───────────┐│          │ ┌────────────┐ ┌─────────────┐ │   │
+│  │ │ Solflare      │ │ Transaction││          │ │ Solana    │ │ Celestia    │ │   │
+│  │ │ Wallet        │ │ Signing    ││          │ │ Explorer  │ │ Explorer    │ │   │
+│  │ └───────────────┘ └───────────┘│          │ └────────────┘ └─────────────┘ │   │
+│  └─────────────────────────────────┘          └────────────────────────────────┘   │
+│                                                                                    │
+└────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ### Core Components
 
-1. **Service Layer** (`/src/lib/services/`)
-   - `celestia.js` - Handles all interactions with the Celestia DA layer
-   - `ipfs.js` - Manages file uploads and downloads through IPFS
-   - `zk.js` - Implements Zero Knowledge Proof generation and verification
+1. **Client Layer**
+   - **User Interface Components** (`/src/lib/`)
+     - `UploadInterface.svelte` - File upload and transfer UI
+     - `Inbox.svelte` - Received files management interface
+     - `WalletConnection.svelte` - Solana wallet connection component
+     - `PayloadPreview.svelte` - File and transaction information display
+     - `CelestiaStatus.svelte` - Celestia network connection status
+     - `ZkStatus.svelte` - ZK circuit availability indicator
+   
+   - **Store Management** (`/src/lib/stores/`)
+     - `fileStore.js` - Manages file upload/download state and operations
+     - `inboxStore.js` - Maintains the user's inbox of received files
+     - `walletStore.js` - Handles Solana wallet connectivity and user authentication
+     - `userDatabase.js` - User profile and authentication logic
+     - `themeStore.js` - Controls application theming
+   
+   - **Service Interfaces** (`/src/lib/services/`)
+     - `solana.js` - Solana blockchain integration for transactions and memos
+     - `celestia.js` - Celestia Data Availability (DA) layer integration
+     - `ipfs.js` - Manages file uploads and downloads through IPFS
+     - `zk.js` - Implements Zero Knowledge Proof generation and verification
 
-2. **State Management** (`/src/lib/stores/`)
-   - `fileStore.js` - Manages file upload/download state and operations
-   - `inboxStore.js` - Maintains the user's inbox of received files
-   - `wallet.js` - Handles wallet connectivity and user authentication
-   - `themeStore.js` - Controls application theming
+2. **Backend API Layer**
+   - **Celestia API Proxy** (`/src/server/`)
+     - `celestia-api.cjs` - Backend proxy for Celestia node communication
+   - **Solana API Services**
+     - Devnet RPC endpoints for transaction submission
+     - Memo program integration for storing references on-chain
+   - **IPFS Gateway**
+     - Connection to IPFS network for file storage and retrieval
 
-3. **User Interface** (`/src/lib/`)
-   - `UploadInterface.svelte` - File upload and transfer UI
-   - `Inbox.svelte` - Received files management
-   - `CelestiaStatus.svelte` - Celestia network connection status
-   - `ZkStatus.svelte` - ZK circuit availability status
+3. **Blockchain & Storage Infrastructure**
+   - **IPFS Network** - Distributed content-addressable storage system
+   - **Celestia Network** - Data availability layer for blockchain attestation
+   - **Solana Network** - High-performance blockchain for transactions and memos
+     - Uses devnet for testing and development
+     - Implements SPL-Memo program for on-chain data references
+     - Platform fee collection mechanism
+   - **Succinct Prover Network** - Zero Knowledge verification services
+   - **Wallet Components**
+     - Solflare wallet integration for Solana transactions
+     - Transaction signing and verification
+   - **Blockchain Explorers**
+     - Solana Explorer for transaction verification
+     - Celestia Explorer for DA verification
 
-4. **Server** (`/src/server/`)
-   - `celestia-api.cjs` - Backend proxy for Celestia node communication
+### Data Flow
+
+1. **File Upload**
+   - User connects Solana wallet via Solflare
+   - File is uploaded to IPFS and CID is generated
+   - IPFS CID is submitted to Celestia DA layer
+   - Transaction reference is stored on Solana blockchain using SPL-Memo
+   - Zero Knowledge proof is generated via Succinct zkVM
+
+2. **Transaction Verification**
+   - Solana transaction creates permanent record with platform fee
+   - Celestia blob storage ensures data availability
+   - IPFS ensures content addressing and retrieval
+   - Zero Knowledge proofs provide privacy-preserving verification
+
+3. **File Retrieval**
+   - Inbox queries Solana and Celestia for user's received files
+   - IPFS CIDs are used to retrieve file content
+   - Verification status displayed from all blockchain sources
 
 ## Prerequisites
 

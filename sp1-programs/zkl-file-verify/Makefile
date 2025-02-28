@@ -4,55 +4,55 @@ PROGRAM_ID = zkl-file-verify-v1
 BUILD_FLAGS = --docker
 SP1_CARGO_PROVE = ~/.sp1/bin/cargo-prove
 
-# SP1 yüklü olup olmadığını kontrol et
+# Check if SP1 is installed
 ifeq (,$(wildcard ~/.sp1/bin/cargo-prove))
-$(error "cargo-prove komutu bulunamadı. Lütfen sp1up komutuyla SP1 yükleyin.")
+$(error "cargo-prove command not found. Please install SP1 using the sp1up command.")
 endif
 
-# Varsayılan test IPFS hash'i ve secret
+# Default test IPFS hash and secret
 TEST_IPFS_HASH ?= QmTPmBiqnUnL1k3W9GxmZTTtMSEX8rgpwqeCfYsJvodS2d
 TEST_SECRET ?= test-secret
 
-# Hash değerini hesapla (basitleştirilmiş, script için)
+# Calculate hash value (simplified, for script)
 TEST_HASH_VALUE ?= 123456789
 
 build:
-	@echo "SP1 programı derleniyor..."
+	@echo "Building SP1 program..."
 	$(SP1_CARGO_PROVE) prove build $(BUILD_FLAGS)
-	@echo "Program başarıyla derlendi."
+	@echo "Program successfully built."
 
 test:
-	@echo "SP1 programı test ediliyor..."
+	@echo "Testing SP1 program..."
 	$(SP1_CARGO_PROVE) prove test $(BUILD_FLAGS)
-	@echo "Testler başarıyla tamamlandı."
+	@echo "Tests completed successfully."
 
-# Yerel proof oluşturma
+# Generate local proof
 prove: build
-	@echo "Proof oluşturuluyor: $(TEST_IPFS_HASH) $(TEST_HASH_VALUE) $(TEST_SECRET)"
+	@echo "Generating proof: $(TEST_IPFS_HASH) $(TEST_HASH_VALUE) $(TEST_SECRET)"
 	cargo run -- "$(TEST_IPFS_HASH)" "$(TEST_HASH_VALUE)" "$(TEST_SECRET)"
 
-# Succinct Prover Network'e gönderme
+# Upload to Succinct Prover Network
 upload: build
-	@echo "Program Succinct Prover Network'e yükleniyor..."
+	@echo "Uploading program to Succinct Prover Network..."
 	$(SP1_CARGO_PROVE) prove upload --program-id $(PROGRAM_ID)
-	@echo "Program başarıyla yüklendi, program ID: $(PROGRAM_ID)"
+	@echo "Program successfully uploaded, program ID: $(PROGRAM_ID)"
 
-# Clean - derleme çıktılarını temizle
+# Clean - remove build outputs
 clean:
-	@echo "Derleme çıktıları temizleniyor..."
+	@echo "Cleaning build outputs..."
 	cargo clean
-	@echo "Temizleme tamamlandı."
+	@echo "Cleaning completed."
 
-# Kullanım kılavuzu
+# Usage guide
 help:
-	@echo "Kullanım:"
-	@echo "  make build         - Programı derle"
-	@echo "  make test          - Testleri çalıştır"
-	@echo "  make prove         - Yerel olarak proof oluştur"
-	@echo "  make upload        - Programı Succinct Network'e yükle"
-	@echo "  make clean         - Derleme çıktılarını temizle"
+	@echo "Usage:"
+	@echo "  make build         - Build the program"
+	@echo "  make test          - Run tests"
+	@echo "  make prove         - Generate proof locally"
+	@echo "  make upload        - Upload program to Succinct Network"
+	@echo "  make clean         - Clean build outputs"
 	@echo ""
-	@echo "Parametreler:"
-	@echo "  TEST_IPFS_HASH=<hash>    - Test için IPFS hash'i (varsayılan: $(TEST_IPFS_HASH))"
-	@echo "  TEST_HASH_VALUE=<value>  - Test için hash değeri (varsayılan: $(TEST_HASH_VALUE))"
-	@echo "  TEST_SECRET=<secret>     - Test için secret (varsayılan: $(TEST_SECRET))" 
+	@echo "Parameters:"
+	@echo "  TEST_IPFS_HASH=<hash>    - IPFS hash for testing (default: $(TEST_IPFS_HASH))"
+	@echo "  TEST_HASH_VALUE=<value>  - Hash value for testing (default: $(TEST_HASH_VALUE))"
+	@echo "  TEST_SECRET=<secret>     - Secret for testing (default: $(TEST_SECRET))"
